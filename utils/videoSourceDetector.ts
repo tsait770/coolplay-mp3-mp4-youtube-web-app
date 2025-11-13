@@ -217,19 +217,14 @@ export function detectVideoSource(url: string): VideoSourceInfo {
 
   const trimmedUrl = url.trim();
   
-  const isLocalFile = trimmedUrl.startsWith('file://') || 
-                      trimmedUrl.startsWith('content://') ||
-                      /^[\/].*\.(mp4|webm|ogg|ogv|mkv|avi|mov|flv|wmv|m4v|3gp|ts|m4a)$/i.test(trimmedUrl);
-  
-  if (isLocalFile) {
-    console.log('[VideoSourceDetector] Local file detected:', trimmedUrl);
-    
+  // Check for local file URIs first (file://, content://, or absolute paths)
+  if (trimmedUrl.startsWith('file://') || 
+      trimmedUrl.startsWith('content://') ||
+      /^[\/].*\.(mp4|webm|ogg|ogv|mkv|avi|mov|flv|wmv|m4v|3gp|ts|m4a)$/i.test(trimmedUrl)) {
+    console.log('[VideoSourceDetector] Detected local file:', trimmedUrl);
+    // Extract file extension
     const extensionMatch = trimmedUrl.match(/\.(mp4|webm|ogg|ogv|mkv|avi|mov|flv|wmv|m4v|3gp|ts|m4a)(?:[?#].*)?$/i);
     const extension = extensionMatch ? extensionMatch[1].toLowerCase() : 'mp4';
-    
-    console.log('[VideoSourceDetector] Local file extension:', extension);
-    console.log('[VideoSourceDetector] Full URI:', trimmedUrl);
-    
     return {
       type: 'direct',
       platform: 'Local File',
@@ -269,6 +264,8 @@ export function detectVideoSource(url: string): VideoSourceInfo {
     }
   }
 
+  // IMPORTANT: Check streaming formats FIRST (m3u8, mpd, rtmp, rtsp)
+  // before checking direct video files to prevent URL truncation
   for (const [protocol, pattern] of Object.entries(STREAM_PROTOCOLS)) {
     if (pattern.test(url)) {
       console.log(`[VideoSourceDetector] Detected ${protocol.toUpperCase()} stream`);
@@ -282,13 +279,11 @@ export function detectVideoSource(url: string): VideoSourceInfo {
     }
   }
 
+  // Now check direct video file formats (mp4, webm, etc.)
   const fileExtMatch = normalizedUrl.match(new RegExp(`\\.(${DIRECT_VIDEO_FORMATS.join('|')})(\\?.*)?$`, 'i'));
   if (fileExtMatch) {
     const ext = fileExtMatch[1];
-    console.log('[VideoSourceDetector] Direct video file detected:', ext);
-    console.log('[VideoSourceDetector] Full URL:', url);
-    console.log('[VideoSourceDetector] Is remote:', url.startsWith('http'));
-    
+    console.log('[VideoSourceDetector] Detected direct video file:', ext);
     return {
       type: 'direct',
       platform: 'Direct Video',
