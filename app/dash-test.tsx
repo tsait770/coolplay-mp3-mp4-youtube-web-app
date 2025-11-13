@@ -67,7 +67,7 @@ export default function DashTestScreen() {
         options={{
           title: 'DASH Player Test',
           headerStyle: {
-            backgroundColor: Colors.background.primary,
+            backgroundColor: Colors.primary.bg,
           },
           headerTintColor: Colors.primary.text,
           headerTitleStyle: {
@@ -159,7 +159,7 @@ export default function DashTestScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background.primary,
+    backgroundColor: Colors.primary.bg,
   },
   playerContainer: {
     flex: 1,
@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   errorBanner: {
-    backgroundColor: Colors.semantic.dangerLight,
+    backgroundColor: Colors.semantic.danger + '20',
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
@@ -208,12 +208,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   card: {
-    backgroundColor: Colors.background.secondary,
+    backgroundColor: Colors.surface.secondary,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: Colors.background.tertiary,
+    borderColor: Colors.surface.tertiary,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
     fontFamily: 'monospace',
   },
   infoSection: {
-    backgroundColor: Colors.primary.accentLight,
+    backgroundColor: Colors.primary.accent + '20',
     borderRadius: 12,
     padding: 16,
     marginBottom: 24,
@@ -274,12 +274,12 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   backButton: {
-    backgroundColor: Colors.background.secondary,
+    backgroundColor: Colors.surface.secondary,
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: Colors.background.tertiary,
+    borderColor: Colors.surface.tertiary,
   },
   backButtonText: {
     fontSize: 16,
