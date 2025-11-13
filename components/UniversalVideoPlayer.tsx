@@ -27,6 +27,7 @@ import { getSocialMediaConfig } from '@/utils/socialMediaPlayer';
 import { useMembership } from '@/providers/MembershipProvider';
 import SocialMediaPlayer from '@/components/SocialMediaPlayer';
 import YouTubePlayerStandalone from '@/components/YouTubePlayerStandalone';
+import DashPlayer from '@/components/DashPlayer';
 import Colors from '@/constants/colors';
 
 export interface UniversalVideoPlayerProps {
@@ -76,11 +77,12 @@ export default function UniversalVideoPlayer({
   const playbackEligibility = canPlayVideo(url, tier);
   
   // Determine which player to use based on source info
+  // IMPORTANT: iOS AVPlayer doesn't support DASH format (.mpd)
+  // Only HLS (.m3u8) and direct video files work on native player
   const shouldUseNativePlayer =
     sourceInfo.type === 'direct' ||
-    sourceInfo.type === 'stream' ||
     sourceInfo.type === 'hls' ||
-    sourceInfo.type === 'dash';
+    (sourceInfo.type === 'stream' && sourceInfo.streamType === 'hls');
 
   // Only initialize native player if we're actually using it
   // For WebView-required URLs, skip native player initialization
@@ -355,6 +357,22 @@ export default function UniversalVideoPlayer({
           }}
           isFullscreen={isFullscreen}
           toggleFullscreen={() => setIsFullscreen(!isFullscreen)}
+          onBackPress={onBackPress}
+        />
+      );
+    }
+
+    if (sourceInfo.type === 'dash' || (sourceInfo.type === 'stream' && sourceInfo.streamType === 'dash')) {
+      console.log('[UniversalVideoPlayer] Using DASH player for .mpd stream');
+      return (
+        <DashPlayer
+          url={url}
+          onError={onError}
+          onLoad={() => {
+            setIsLoading(false);
+            setRetryCount(0);
+          }}
+          autoPlay={autoPlay}
           onBackPress={onBackPress}
         />
       );
@@ -818,15 +836,16 @@ export default function UniversalVideoPlayer({
     sourceInfo.type === 'odysee' ||
     sourceInfo.type === 'bilibili' ||
     sourceInfo.type === 'gdrive' ||
-    sourceInfo.type === 'dropbox');
+    sourceInfo.type === 'dropbox' ||
+    sourceInfo.type === 'dash' ||
+    (sourceInfo.type === 'stream' && sourceInfo.streamType === 'dash'));
 
   const shouldUseNativePlayerRender =
     !useSocialMediaPlayer &&
     !shouldUseWebView &&
     (sourceInfo.type === 'direct' ||
-    sourceInfo.type === 'stream' ||
     sourceInfo.type === 'hls' ||
-    sourceInfo.type === 'dash');
+    (sourceInfo.type === 'stream' && sourceInfo.streamType === 'hls'));
 
   console.log('[UniversalVideoPlayer] Player selection:', {
     useSocialMediaPlayer,
