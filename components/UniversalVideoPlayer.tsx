@@ -488,7 +488,7 @@ export default function UniversalVideoPlayer({
         renderLoading={() => (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={Colors.primary.accent} />
-            <Text style={styles.loadingText}>{`Loading ${sourceInfo.platform || 'video'}`}</Text>
+            <Text style={styles.loadingText}>{`Loading ${sourceInfo.platform || 'video'}...`}</Text>
           </View>
         )}
         onLoadStart={() => {
@@ -696,81 +696,26 @@ export default function UniversalVideoPlayer({
     );
   };
 
-  const videoViewRef = useRef<any>(null);
-
-  const handleFullscreenToggle = useCallback(async () => {
-    try {
-      console.log('[UniversalVideoPlayer] Toggling fullscreen, current state:', isFullscreen);
-      
-      if (videoViewRef.current) {
-        if (!isFullscreen) {
-          console.log('[UniversalVideoPlayer] Entering fullscreen mode');
-          if (videoViewRef.current.enterFullscreen) {
-            await videoViewRef.current.enterFullscreen();
-            setIsFullscreen(true);
-          } else {
-            console.log('[UniversalVideoPlayer] enterFullscreen not available, using fallback');
-            setIsFullscreen(true);
-          }
-        } else {
-          console.log('[UniversalVideoPlayer] Exiting fullscreen mode');
-          if (videoViewRef.current.exitFullscreen) {
-            await videoViewRef.current.exitFullscreen();
-            setIsFullscreen(false);
-          } else {
-            console.log('[UniversalVideoPlayer] exitFullscreen not available, using fallback');
-            setIsFullscreen(false);
-          }
-        }
-      } else {
-        console.log('[UniversalVideoPlayer] videoViewRef not available, toggling state only');
-        setIsFullscreen(!isFullscreen);
-      }
-      
-      console.log('[UniversalVideoPlayer] Fullscreen toggled successfully');
-    } catch (error) {
-      console.error('[UniversalVideoPlayer] Error toggling fullscreen:', error);
-      setIsFullscreen(!isFullscreen);
-    }
-  }, [isFullscreen]);
-
   const renderNativePlayer = () => {
     console.log('[UniversalVideoPlayer] Rendering native player for:', url);
 
     return (
-      <View style={isFullscreen ? styles.fullscreenContainer : styles.videoContainer}>
-        <TouchableOpacity
-          style={StyleSheet.absoluteFill}
-          activeOpacity={1}
-          onPress={() => setShowControls(true)}
-        >
-          <VideoView
-            ref={videoViewRef}
-            player={player}
-            style={styles.video}
-            contentFit={isFullscreen ? "cover" : "contain"}
-            nativeControls={false}
-            allowsFullscreen
-            allowsPictureInPicture
-          />
-        </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.videoContainer}
+        activeOpacity={1}
+        onPress={() => setShowControls(true)}
+      >
+        <VideoView
+          player={player}
+          style={styles.video}
+          contentFit="contain"
+          nativeControls={false}
+          allowsFullscreen
+          allowsPictureInPicture
+        />
         
         {showControls && (
           <View style={styles.controlsOverlay}>
-            {isFullscreen && (
-              <View style={[styles.topControlsBar, { paddingTop: insets.top + 16 }]}>
-                <TouchableOpacity
-                  onPress={handleFullscreenToggle}
-                  style={styles.exitFullscreenButton}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.exitButtonInner}>
-                    <Minimize size={24} color="#fff" />
-                  </View>
-                </TouchableOpacity>
-              </View>
-            )}
-
             <View style={styles.controlsContainer}>
               <TouchableOpacity
                 style={styles.controlButton}
@@ -809,14 +754,16 @@ export default function UniversalVideoPlayer({
                 )}
               </TouchableOpacity>
 
-              {!isFullscreen && (
-                <TouchableOpacity
-                  style={styles.controlButton}
-                  onPress={handleFullscreenToggle}
-                >
+              <TouchableOpacity
+                style={styles.controlButton}
+                onPress={() => setIsFullscreen(!isFullscreen)}
+              >
+                {isFullscreen ? (
+                  <Minimize size={24} color="#fff" />
+                ) : (
                   <Maximize size={24} color="#fff" />
-                </TouchableOpacity>
-              )}
+                )}
+              </TouchableOpacity>
             </View>
           </View>
         )}
@@ -827,7 +774,7 @@ export default function UniversalVideoPlayer({
             <Text style={styles.loadingText}>Loading video...</Text>
           </View>
         )}
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -950,15 +897,6 @@ const styles = StyleSheet.create({
     flex: 1,
     position: 'relative',
   },
-  fullscreenContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 9999,
-    backgroundColor: '#000',
-  },
   video: {
     flex: 1,
     width: '100%',
@@ -1019,38 +957,6 @@ const styles = StyleSheet.create({
     right: 20,
     flexDirection: 'row',
     gap: 16,
-  },
-  topControlsBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 16,
-    zIndex: 1002,
-  },
-  exitFullscreenButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(30, 30, 30, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  exitButtonInner: {
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   errorContainer: {
     flex: 1,
