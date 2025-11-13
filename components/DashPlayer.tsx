@@ -164,6 +164,15 @@ export default function DashPlayer({
       console.log('[DashPlayer] Initializing with URL:', videoUrl);
       console.log('[DashPlayer] User Agent:', navigator.userAgent);
       console.log('[DashPlayer] Platform:', navigator.platform);
+      
+      // Detect iOS
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      
+      if (isIOS) {
+        console.warn('[DashPlayer] iOS detected - DASH support is limited');
+        console.warn('[DashPlayer] iOS prefers HLS (.m3u8) format over DASH (.mpd)');
+      }
 
       function hideLoading() {
         loadingOverlay.classList.add('hidden');
@@ -441,7 +450,7 @@ export default function DashPlayer({
 
       {isLoading && (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color={Colors.primary.accent} />
+          <ActivityIndicator size="large" color={Colors.accent.primary} />
           <Text style={styles.loadingText}>Loading DASH stream...</Text>
         </View>
       )}
