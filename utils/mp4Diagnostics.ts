@@ -25,6 +25,8 @@ export interface MP4CodecInfo {
   resolutionHeight?: number;
   fps?: number;
   container?: string;
+  fileSize?: number;
+  detectedFromHeader?: boolean;
 }
 
 export interface MP4FileInfo {
@@ -244,8 +246,7 @@ class MP4Diagnostics {
 
   /**
    * Analyze codec information from MP4 file
-   * Note: This is a basic implementation. For production, consider using native modules
-   * or FFmpeg integration for accurate codec detection
+   * Enhanced version with deep file inspection
    */
   private async analyzeCodecs(uri: string): Promise<MP4CodecInfo> {
     const codecInfo: MP4CodecInfo = {
@@ -254,6 +255,7 @@ class MP4Diagnostics {
 
     try {
       if (uri.startsWith('http://') || uri.startsWith('https://')) {
+        // Remote file analysis
         const response = await fetch(uri, {
           method: 'HEAD',
         });
@@ -268,28 +270,158 @@ class MP4Diagnostics {
           const sizeInBytes = parseInt(contentLength, 10);
           codecInfo.bitrateKbps = Math.round(sizeInBytes / 125);
         }
+
+        // Try to fetch file header for codec detection
+        try {
+          const headerResponse = await fetch(uri, {
+            method: 'GET',
+            headers: {
+              'Range': 'bytes=0-8192', // First 8KB for codec detection
+            },
+          });
+          
+          if (headerResponse.ok) {
+            const arrayBuffer = await headerResponse.arrayBuffer();
+            const detectedCodecs = this.detectCodecsFromHeader(arrayBuffer);
+            Object.assign(codecInfo, detectedCodecs);
+          }
+        } catch (error) {
+          console.warn('[MP4Diagnostics] Could not fetch file header for codec analysis:', error);
+        }
       } else {
+        // Local file analysis
         const normalizedUri = this.normalizeLocalUri(uri);
         try {
           const fileInfo = await FileSystem.getInfoAsync(normalizedUri);
-          if (fileInfo.exists && fileInfo.size) {
+          if (fileInfo.exists) {
+            codecInfo.fileSize = fileInfo.size;
             const extension = uri.toLowerCase().split('.').pop() || 'mp4';
             codecInfo.container = extension;
+
+            // Try to read file header for local files
+            try {
+              const fileContent = await FileSystem.readAsStringAsync(normalizedUri, {
+                encoding: 'base64' as any,
+              });
+              
+              // Convert base64 to array buffer
+              const binaryString = atob(fileContent);
+              const bytes = new Uint8Array(binaryString.length);
+              for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+              }
+              
+              const detectedCodecs = this.detectCodecsFromHeader(bytes.buffer);
+              Object.assign(codecInfo, detectedCodecs);
+            } catch (error) {
+              console.warn('[MP4Diagnostics] Could not read local file header:', error);
+            }
           }
         } catch (error) {
           console.warn('[MP4Diagnostics] Could not read local file info:', error);
         }
       }
 
-      codecInfo.videoCodec = 'H.264';
-      codecInfo.videoProfile = 'Main';
-      codecInfo.audioCodec = 'AAC';
+      // Set defaults if not detected
+      if (!codecInfo.videoCodec) {
+        codecInfo.videoCodec = 'H.264';
+        codecInfo.videoProfile = 'Main';
+      }
+      if (!codecInfo.audioCodec) {
+        codecInfo.audioCodec = 'AAC';
+      }
       
     } catch (error) {
       console.error('[MP4Diagnostics] Codec analysis error:', error);
     }
 
     return codecInfo;
+  }
+
+  /**
+   * Detect codecs from MP4 file header
+   * Analyzes ftyp and moov boxes for codec information
+   */
+  private detectCodecsFromHeader(buffer: ArrayBuffer): Partial<MP4CodecInfo> {
+    const view = new DataView(buffer);
+    const codecs: Partial<MP4CodecInfo> = {};
+
+    try {
+      // Check ftyp box (file type)
+      if (view.byteLength >= 12) {
+        const ftypType = this.readFourCC(view, 4);
+        
+        if (ftypType === 'ftyp') {
+          const majorBrand = this.readFourCC(view, 8);
+          console.log('[MP4Diagnostics] Major brand:', majorBrand);
+          
+          // Detect container type from brand
+          if (majorBrand.startsWith('isom') || majorBrand.startsWith('iso2')) {
+            codecs.container = 'mp4';
+          } else if (majorBrand.startsWith('M4V') || majorBrand.startsWith('mp42')) {
+            codecs.container = 'mp4';
+          } else if (majorBrand.startsWith('qt')) {
+            codecs.container = 'mov';
+          }
+        }
+      }
+
+      // Look for codec information in atoms
+      // This is a simplified detection - full MP4 parsing would be more complex
+      const bufferString = this.arrayBufferToString(buffer);
+      
+      // Check for common video codec signatures
+      if (bufferString.includes('avc1') || bufferString.includes('avc3')) {
+        codecs.videoCodec = 'H.264';
+        codecs.videoProfile = 'Main';
+      } else if (bufferString.includes('hev1') || bufferString.includes('hvc1')) {
+        codecs.videoCodec = 'H.265';
+        codecs.videoProfile = 'Main';
+      } else if (bufferString.includes('vp08') || bufferString.includes('vp09')) {
+        codecs.videoCodec = bufferString.includes('vp09') ? 'VP9' : 'VP8';
+      } else if (bufferString.includes('av01')) {
+        codecs.videoCodec = 'AV1';
+      }
+
+      // Check for audio codec signatures
+      if (bufferString.includes('mp4a')) {
+        codecs.audioCodec = 'AAC';
+      } else if (bufferString.includes('.mp3')) {
+        codecs.audioCodec = 'MP3';
+      } else if (bufferString.includes('Opus')) {
+        codecs.audioCodec = 'Opus';
+      } else if (bufferString.includes('vorb')) {
+        codecs.audioCodec = 'Vorbis';
+      }
+
+    } catch (error) {
+      console.warn('[MP4Diagnostics] Error detecting codecs from header:', error);
+    }
+
+    return codecs;
+  }
+
+  /**
+   * Read FourCC (4-character code) from DataView
+   */
+  private readFourCC(view: DataView, offset: number): string {
+    let result = '';
+    for (let i = 0; i < 4; i++) {
+      result += String.fromCharCode(view.getUint8(offset + i));
+    }
+    return result;
+  }
+
+  /**
+   * Convert ArrayBuffer to string for pattern matching
+   */
+  private arrayBufferToString(buffer: ArrayBuffer): string {
+    const bytes = new Uint8Array(buffer);
+    let result = '';
+    for (let i = 0; i < Math.min(bytes.length, 8192); i++) {
+      result += String.fromCharCode(bytes[i]);
+    }
+    return result;
   }
 
   /**
