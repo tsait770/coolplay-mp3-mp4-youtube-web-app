@@ -53,8 +53,8 @@ export default function ConnectionTestScreen() {
       updateTest(0, { status: 'running', message: '檢查中...' });
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-      const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+      const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://ukpskaspdzinzpsdoodi.supabase.co';
+      const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVrcHNrYXNwZHppbnpwc2Rvb2RpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI5NDA0MjgsImV4cCI6MjA3ODUxNjQyOH0.HdmSGe_YEs5hVFTgm7QMzmQu3xe8i95carC8wxSjGfU';
       const toolkitUrl = process.env.EXPO_PUBLIC_TOOLKIT_URL;
       const appUrl = process.env.EXPO_PUBLIC_APP_URL;
 
