@@ -286,7 +286,13 @@ export default function HlsPlayer({
 
   const handleMessage = (event: any) => {
     try {
-      const data = JSON.parse(event.nativeEvent.data);
+      const rawData = event.nativeEvent.data;
+      if (!rawData || typeof rawData !== 'string') {
+        console.warn('[HlsPlayer] Received invalid message data:', rawData);
+        return;
+      }
+      
+      const data = JSON.parse(rawData);
       
       if (data.type === 'loaded') {
         console.log('[HlsPlayer] Stream loaded successfully');
@@ -298,7 +304,7 @@ export default function HlsPlayer({
         onError?.(data.message || '未知 HLS 播放器錯誤');
       }
     } catch (e) {
-      console.error('[HlsPlayer] Failed to parse message:', e);
+      console.error('[HlsPlayer] Failed to parse message:', e, 'Raw data:', event.nativeEvent.data);
     }
   };
 

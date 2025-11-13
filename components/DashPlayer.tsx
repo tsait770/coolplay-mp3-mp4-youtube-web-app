@@ -393,7 +393,13 @@ export default function DashPlayer({
 
   const handleMessage = (event: any) => {
     try {
-      const data = JSON.parse(event.nativeEvent.data);
+      const rawData = event.nativeEvent.data;
+      if (!rawData || typeof rawData !== 'string') {
+        console.warn('[DashPlayer] Received invalid message data:', rawData);
+        return;
+      }
+      
+      const data = JSON.parse(rawData);
       
       if (data.type === 'loaded') {
         console.log('[DashPlayer] Stream loaded successfully');
@@ -405,7 +411,7 @@ export default function DashPlayer({
         onError?.(data.message || '未知 DASH 播放器錯誤');
       }
     } catch (e) {
-      console.error('[DashPlayer] Failed to parse message:', e);
+      console.error('[DashPlayer] Failed to parse message:', e, 'Raw data:', event.nativeEvent.data);
     }
   };
 
