@@ -385,18 +385,30 @@ export default function UniversalVideoPlayer({
       
       // Check if iOS
       if (Platform.OS === 'ios') {
-        console.warn('[UniversalVideoPlayer] DASH format has limited support on iOS - attempting to play anyway');
+        // Log info level only - DASH on iOS is known to have limitations
+        console.info('[UniversalVideoPlayer] DASH stream on iOS - compatibility depends on codec');
         
-        // Don't block playback - just log the warning
-        // The DashPlayer will handle errors internally if they occur
+        // Don't block playback or show warnings - attempt to play
+        // The DashPlayer will handle actual errors if they occur
         return (
           <DashPlayer
             url={url}
             onError={(error) => {
-              console.error('[UniversalVideoPlayer] DASH playback error on iOS:', error);
-              // Only call onError if actual playback fails, not just for iOS detection
-              if (onError) {
+              // On iOS, DASH errors are expected due to limited codec support
+              // Only log as warning, not error
+              console.warn('[UniversalVideoPlayer] DASH playback warning on iOS:', error);
+              
+              // Check if it's just a compatibility message
+              const isCompatibilityWarning = error.includes('DASH 格式不相容') || 
+                                             error.includes('編解碼器') ||
+                                             error.includes('HLS');
+              
+              // Only propagate actual playback errors, not compatibility warnings
+              if (onError && !isCompatibilityWarning) {
                 onError(error);
+              } else if (isCompatibilityWarning) {
+                // For compatibility warnings, just log them
+                console.info('[UniversalVideoPlayer] iOS DASH compatibility: Stream uses incompatible codec');
               }
             }}
             onLoad={() => {
@@ -415,7 +427,12 @@ export default function UniversalVideoPlayer({
       return (
         <DashPlayer
           url={url}
-          onError={onError}
+          onError={(error) => {
+            console.error('[UniversalVideoPlayer] DASH playback error:', error);
+            if (onError) {
+              onError(error);
+            }
+          }}
           onLoad={() => {
             setIsLoading(false);
             setRetryCount(0);
