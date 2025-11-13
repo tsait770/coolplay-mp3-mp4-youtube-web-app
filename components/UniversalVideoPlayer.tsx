@@ -103,11 +103,23 @@ export default function UniversalVideoPlayer({
   }
   
   // Create player with proper initialization
+  // For local files and direct MP4, ensure we pass the correct URL
+  const playerInitUrl = shouldInitializeNativePlayer && nativePlayerUrl 
+    ? nativePlayerUrl 
+    : 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+  
+  console.log('[UniversalVideoPlayer] Initializing player with URL:', playerInitUrl);
+  console.log('[UniversalVideoPlayer] Source type:', sourceInfo.type);
+  console.log('[UniversalVideoPlayer] Should use native player:', shouldUseNativePlayer);
+  
   const player = useVideoPlayer(
-    shouldInitializeNativePlayer && nativePlayerUrl ? nativePlayerUrl : 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+    playerInitUrl,
     (player) => {
       player.loop = false;
       player.muted = isMuted;
+      
+      console.log('[UniversalVideoPlayer] Player initialized');
+      console.log('[UniversalVideoPlayer] Player status:', player.status);
       
       // Only autoplay if we have a valid URL and native player should be initialized
       if (autoPlay && shouldInitializeNativePlayer && nativePlayerUrl && nativePlayerUrl !== '') {
@@ -787,14 +799,29 @@ export default function UniversalVideoPlayer({
   };
 
   const renderNativePlayer = () => {
-    console.log('[UniversalVideoPlayer] Rendering enhanced MP4 player for:', url);
+    console.log('[UniversalVideoPlayer] Rendering enhanced MP4 player');
+    console.log('[UniversalVideoPlayer] URL:', url);
+    console.log('[UniversalVideoPlayer] Source info:', {
+      type: sourceInfo.type,
+      platform: sourceInfo.platform,
+      streamType: sourceInfo.streamType,
+    });
 
     return (
       <EnhancedMP4Player
         url={url}
-        onError={onError}
-        onPlaybackStart={onPlaybackStart}
-        onPlaybackEnd={onPlaybackEnd}
+        onError={(error) => {
+          console.error('[UniversalVideoPlayer] EnhancedMP4Player error:', error);
+          onError?.(error);
+        }}
+        onPlaybackStart={() => {
+          console.log('[UniversalVideoPlayer] Playback started');
+          onPlaybackStart?.();
+        }}
+        onPlaybackEnd={() => {
+          console.log('[UniversalVideoPlayer] Playback ended');
+          onPlaybackEnd?.();
+        }}
         autoPlay={autoPlay}
         style={style}
         onBackPress={onBackPress}
