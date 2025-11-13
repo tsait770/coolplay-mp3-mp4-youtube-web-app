@@ -589,7 +589,11 @@ export default function UniversalVideoPlayer({
         onScroll={handleScroll}
         onMessage={(event) => {
           try {
-            const data = JSON.parse(event.nativeEvent.data);
+            const rawData = event.nativeEvent.data;
+            if (!rawData || typeof rawData !== 'string') {
+              return;
+            }
+            const data = JSON.parse(rawData);
             if (data.type === 'scroll_start') {
               handleScroll();
             } else if (data.type === 'scroll_stop') {
@@ -598,7 +602,9 @@ export default function UniversalVideoPlayer({
               }
               setIsScrolling(false);
             }
-          } catch (e) {}
+          } catch (e) {
+            console.warn('[UniversalVideoPlayer] Failed to parse WebView message:', e);
+          }
         }}
         onError={(syntheticEvent) => {
           const { nativeEvent } = syntheticEvent;
