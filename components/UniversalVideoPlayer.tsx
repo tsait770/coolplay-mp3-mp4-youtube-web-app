@@ -505,7 +505,7 @@ export default function UniversalVideoPlayer({
         startInLoadingState
         renderLoading={() => (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={Colors.primary.accent} />
+            <ActivityIndicator size="large" color={Colors.accent.primary} />
             <Text style={styles.loadingText}>{`Loading ${sourceInfo.platform || 'video'}...`}</Text>
           </View>
         )}
@@ -788,7 +788,7 @@ export default function UniversalVideoPlayer({
 
         {isLoading && (
           <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color={Colors.primary.accent} />
+            <ActivityIndicator size="large" color={Colors.accent.primary} />
             <Text style={styles.loadingText}>Loading video...</Text>
           </View>
         )}
@@ -799,7 +799,7 @@ export default function UniversalVideoPlayer({
   const renderError = () => {
     return (
       <View style={styles.errorContainer}>
-        <AlertCircle size={48} color={Colors.semantic.danger} />
+        <AlertCircle size={48} color={Colors.accent.danger} />
         <Text style={styles.errorTitle}>Unable to Play Video</Text>
         <Text style={styles.errorMessage}>{playbackError}</Text>
         {!playbackEligibility.canPlay && (
@@ -860,7 +860,7 @@ export default function UniversalVideoPlayer({
     return (
       <View style={[styles.container, style]}>
         <View style={styles.errorContainer}>
-          <AlertCircle size={48} color={Colors.primary.textSecondary} />
+          <AlertCircle size={48} color={Colors.primary.textTertiary} />
           <Text style={styles.errorTitle}>No Video Selected</Text>
           <Text style={styles.errorMessage}>Please select a video to play</Text>
         </View>
@@ -999,7 +999,7 @@ const styles = StyleSheet.create({
   },
   errorHint: {
     fontSize: 12,
-    color: Colors.primary.accent,
+    color: Colors.accent.primary,
     marginTop: 16,
     textAlign: 'center',
   },
