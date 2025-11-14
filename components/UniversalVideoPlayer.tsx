@@ -553,6 +553,32 @@ export default function UniversalVideoPlayer({
                 document.head.appendChild(style);
               }
               
+              // Hide redundant back buttons in the page content
+              // This removes Button B (the larger back button below the header)
+              var hideRedundantButtons = setInterval(function() {
+                // Target common back button selectors in web pages
+                var backButtons = document.querySelectorAll('button[aria-label*="back" i], button[aria-label*="返回" i], a[aria-label*="back" i], a[aria-label*="返回" i], .back-button, [class*="back-btn"], [id*="back-btn"]');
+                if (backButtons.length > 0) {
+                  backButtons.forEach(function(btn) {
+                    // Only hide if it's not inside a video player or critical UI
+                    var isInPlayer = btn.closest('.video-player, .player-controls, [class*="player"]');
+                    if (!isInPlayer) {
+                      btn.style.display = 'none';
+                      btn.style.visibility = 'hidden';
+                      btn.style.opacity = '0';
+                      btn.style.pointerEvents = 'none';
+                    }
+                  });
+                  console.log('[WebView] Hidden', backButtons.length, 'redundant back buttons');
+                  clearInterval(hideRedundantButtons);
+                }
+              }, 100);
+              
+              // Clear the interval after 5 seconds to prevent infinite checking
+              setTimeout(function() {
+                clearInterval(hideRedundantButtons);
+              }, 5000);
+              
               let scrollTimer;
               window.addEventListener('scroll', function() {
                 window.ReactNativeWebView?.postMessage(JSON.stringify({ type: 'scroll_start' }));
