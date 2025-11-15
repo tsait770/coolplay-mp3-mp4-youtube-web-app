@@ -11,6 +11,7 @@ export type VideoSourceType =
   | 'instagram'
   | 'tiktok'
   | 'direct' 
+  | 'audio'
   | 'stream' 
   | 'hls' 
   | 'dash' 
@@ -28,13 +29,18 @@ export interface VideoSourceInfo {
   requiresPremium: boolean;
   videoId?: string;
   error?: string;
-  streamType?: 'hls' | 'dash' | 'rtmp' | 'mp4' | 'webm' | 'ogg' | 'mkv' | 'avi' | 'mov';
+  streamType?: 'hls' | 'dash' | 'rtmp' | 'mp4' | 'webm' | 'ogg' | 'mkv' | 'avi' | 'mov' | 'mp3' | 'm4a' | 'wav' | 'flac' | 'aac';
   requiresWebView?: boolean;
   requiresAgeVerification?: boolean;
+  isAudioOnly?: boolean;
 }
 
 const DIRECT_VIDEO_FORMATS = [
-  'mp4', 'webm', 'ogg', 'ogv', 'mkv', 'avi', 'mov', 'flv', 'wmv', '3gp', 'ts', 'm4v', 'm4a'
+  'mp4', 'webm', 'ogg', 'ogv', 'mkv', 'avi', 'mov', 'flv', 'wmv', '3gp', 'ts', 'm4v'
+];
+
+const AUDIO_FORMATS = [
+  'mp3', 'm4a', 'wav', 'flac', 'aac', 'wma', 'opus'
 ];
 
 const STREAM_PROTOCOLS = {
@@ -220,17 +226,19 @@ export function detectVideoSource(url: string): VideoSourceInfo {
   // Check for local file URIs first (file://, content://, or absolute paths)
   if (trimmedUrl.startsWith('file://') || 
       trimmedUrl.startsWith('content://') ||
-      /^[\/].*\.(mp4|webm|ogg|ogv|mkv|avi|mov|flv|wmv|m4v|3gp|ts|m4a)$/i.test(trimmedUrl)) {
+      /^[\/].*\.(mp4|webm|ogg|ogv|mkv|avi|mov|flv|wmv|m4v|3gp|ts|m4a|mp3|wav|flac|aac)$/i.test(trimmedUrl)) {
     console.log('[VideoSourceDetector] Detected local file:', trimmedUrl);
     // Extract file extension
-    const extensionMatch = trimmedUrl.match(/\.(mp4|webm|ogg|ogv|mkv|avi|mov|flv|wmv|m4v|3gp|ts|m4a)(?:[?#].*)?$/i);
+    const extensionMatch = trimmedUrl.match(/\.(mp4|webm|ogg|ogv|mkv|avi|mov|flv|wmv|m4v|3gp|ts|m4a|mp3|wav|flac|aac)(?:[?#].*)?$/i);
     const extension = extensionMatch ? extensionMatch[1].toLowerCase() : 'mp4';
+    const isAudio = AUDIO_FORMATS.includes(extension);
     return {
-      type: 'direct',
-      platform: 'Local File',
+      type: isAudio ? 'audio' : 'direct',
+      platform: isAudio ? 'Local Audio File' : 'Local File',
       requiresPremium: false,
-      streamType: extension as 'mp4' | 'webm' | 'ogg' | 'mkv' | 'avi' | 'mov',
+      streamType: extension as 'mp4' | 'webm' | 'ogg' | 'mkv' | 'avi' | 'mov' | 'mp3' | 'm4a' | 'wav' | 'flac' | 'aac',
       requiresWebView: false,
+      isAudioOnly: isAudio,
     };
   }
   
@@ -279,6 +287,21 @@ export function detectVideoSource(url: string): VideoSourceInfo {
     }
   }
 
+  // Check audio formats BEFORE video formats
+  const audioExtMatch = normalizedUrl.match(new RegExp(`\\.(${AUDIO_FORMATS.join('|')})(\\?.*)?$`, 'i'));
+  if (audioExtMatch) {
+    const ext = audioExtMatch[1];
+    console.log('[VideoSourceDetector] Detected audio file:', ext);
+    return {
+      type: 'audio',
+      platform: 'Direct Audio',
+      requiresPremium: false,
+      streamType: ext as 'mp3' | 'm4a' | 'wav' | 'flac' | 'aac',
+      requiresWebView: false,
+      isAudioOnly: true,
+    };
+  }
+
   // Now check direct video file formats (mp4, webm, etc.)
   const fileExtMatch = normalizedUrl.match(new RegExp(`\\.(${DIRECT_VIDEO_FORMATS.join('|')})(\\?.*)?$`, 'i'));
   if (fileExtMatch) {
@@ -290,6 +313,7 @@ export function detectVideoSource(url: string): VideoSourceInfo {
       requiresPremium: false,
       streamType: ext as 'mp4' | 'webm' | 'ogg' | 'mkv' | 'avi' | 'mov',
       requiresWebView: false,
+      isAudioOnly: false,
     };
   }
 
@@ -416,20 +440,20 @@ export function canPlayVideo(
   }
 
   if (membershipTier === 'free') {
-    const allowedForFree = ['youtube', 'vimeo'];
-    const allowedFormats = ['mp4', 'webm', 'ogg', 'ogv'];
+    const allowedForFree = ['youtube', 'vimeo', 'audio'];
+    const allowedFormats = ['mp4', 'webm', 'ogg', 'ogv', 'mp3', 'm4a', 'wav'];
     
     if (sourceInfo.type === 'direct' && sourceInfo.streamType) {
       if (!allowedFormats.includes(sourceInfo.streamType)) {
         return {
           canPlay: false,
-          reason: '此影片格式需要 Basic 或 Premium 會員。免費版支援 MP4、WebM、OGG、OGV、YouTube 和 Vimeo。',
+          reason: '此影片格式需要 Basic 或 Premium 會員。免費版支援 MP4、WebM、OGG、OGV、MP3、M4A、WAV、YouTube 和 Vimeo。',
         };
       }
     } else if (!allowedForFree.includes(sourceInfo.type)) {
       return {
         canPlay: false,
-        reason: '此平台需要 Basic 或 Premium 會員。免費版僅支援 YouTube 和 Vimeo。',
+        reason: '此平台需要 Basic 或 Premium 會員。免費版僅支援 YouTube、Vimeo 和音頻文件。',
       };
     }
   }
@@ -441,12 +465,12 @@ export function getSupportedPlatforms(membershipTier: 'free_trial' | 'free' | 'b
   const platforms: string[] = [];
   
   if (membershipTier === 'free' as string) {
-    platforms.push('YouTube', 'Vimeo', 'Direct Video (MP4, WebM, OGG, OGV)');
+    platforms.push('YouTube', 'Vimeo', 'Direct Video (MP4, WebM, OGG, OGV)', 'Direct Audio (MP3, M4A, WAV)');
     return platforms;
   }
   
   platforms.push(...SUPPORTED_PLATFORMS.map(s => s.platform));
-  platforms.push('HLS Stream', 'DASH Stream', 'RTMP Stream', 'Direct Video (All formats)');
+  platforms.push('HLS Stream', 'DASH Stream', 'RTMP Stream', 'Direct Video (All formats)', 'Direct Audio (All formats)');
   
   if (membershipTier !== 'free') {
     platforms.push(...ADULT_PLATFORMS.map(s => `${s.platform} (18+)`));
@@ -457,10 +481,10 @@ export function getSupportedPlatforms(membershipTier: 'free_trial' | 'free' | 'b
 
 export function getVideoFormatSupport(membershipTier: 'free_trial' | 'free' | 'basic' | 'premium'): string[] {
   if (membershipTier === 'free') {
-    return ['mp4', 'webm', 'ogg', 'ogv'];
+    return ['mp4', 'webm', 'ogg', 'ogv', 'mp3', 'm4a', 'wav'];
   }
   
-  return DIRECT_VIDEO_FORMATS;
+  return [...DIRECT_VIDEO_FORMATS, ...AUDIO_FORMATS];
 }
 
 export function requiresAgeVerification(url: string): boolean {
