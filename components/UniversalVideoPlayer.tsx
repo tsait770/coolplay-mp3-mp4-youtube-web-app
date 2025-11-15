@@ -97,9 +97,19 @@ export default function UniversalVideoPlayer({
   let nativePlayerUrl = '';
   if (shouldInitializeNativePlayer) {
     nativePlayerUrl = url;
-    // Log local file detection
+    // Log local file detection with detailed info
     if (url.startsWith('file://') || url.startsWith('content://')) {
-      console.log('[UniversalVideoPlayer] Local file detected, using URI:', url);
+      console.log('[UniversalVideoPlayer] Local file detected:', {
+        url,
+        type: sourceInfo.type,
+        isAudioOnly: sourceInfo.isAudioOnly,
+        streamType: sourceInfo.streamType,
+      });
+      
+      // For local audio files on iOS, ensure proper handling
+      if (sourceInfo.isAudioOnly || sourceInfo.type === 'audio') {
+        console.log('[UniversalVideoPlayer] Local audio file detected for iOS/Android');
+      }
     }
   }
   
