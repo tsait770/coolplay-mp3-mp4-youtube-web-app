@@ -475,24 +475,72 @@ export default function PlayerScreen() {
   const pickVideo = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: "video/*",
+        type: [
+          // Video formats
+          "video/mp4",
+          "video/webm",
+          "video/ogg",
+          "video/quicktime",
+          "video/x-matroska",
+          "video/x-msvideo",
+          "video/x-flv",
+          "video/x-ms-wmv",
+          "video/3gpp",
+          // Audio formats
+          "audio/mpeg",
+          "audio/mp4",
+          "audio/wav",
+          "audio/flac",
+          "audio/aac",
+          // Stream formats
+          "application/x-mpegURL",
+          "application/dash+xml",
+          // Fallback to all media types
+          "video/*",
+          "audio/*",
+        ],
         copyToCacheDirectory: true,
+        multiple: false,
       });
 
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
+        console.log('[pickVideo] Selected file:', {
+          name: asset.name,
+          mimeType: asset.mimeType,
+          uri: asset.uri,
+          size: asset.size,
+        });
+
         if (asset.uri && asset.uri.trim() !== '') {
+          // Detect media type from file extension
+          const fileName = asset.name?.toLowerCase() || '';
+          const isAudio = fileName.endsWith('.mp3') || 
+                         fileName.endsWith('.m4a') || 
+                         fileName.endsWith('.wav') || 
+                         fileName.endsWith('.flac') || 
+                         fileName.endsWith('.aac') ||
+                         asset.mimeType?.startsWith('audio/');
+          
+          const isStream = fileName.endsWith('.m3u8') || 
+                          fileName.endsWith('.mpd');
+
           setVideoSource({
             uri: asset.uri,
             type: "local",
-            name: asset.name || "Local Video",
+            name: asset.name || (isAudio ? "Local Audio" : isStream ? "Local Stream" : "Local Video"),
           });
           setIsContentLoaded(true);
+          
+          const mediaType = isAudio ? 'audio' : isStream ? 'stream' : 'video';
+          setVoiceStatus(`${t('loaded')} ${mediaType} ${t('file_successfully')}`);
+          setTimeout(() => setVoiceStatus(''), 3000);
         } else {
           Alert.alert(t("error"), t("invalid_video_file"));
         }
       }
-    } catch {
+    } catch (error) {
+      console.error('[pickVideo] Error:', error);
       Alert.alert(t("error"), t("failed_to_load_video"));
     }
   };
