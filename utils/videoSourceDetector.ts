@@ -14,6 +14,7 @@ export type VideoSourceType =
   | 'stream' 
   | 'hls' 
   | 'dash' 
+  | 'mp3' 
   | 'rtmp' 
   | 'gdrive' 
   | 'dropbox' 
@@ -33,8 +34,8 @@ export interface VideoSourceInfo {
   requiresAgeVerification?: boolean;
 }
 
-const DIRECT_VIDEO_FORMATS = [
-  'mp4', 'webm', 'ogg', 'ogv', 'mkv', 'avi', 'mov', 'flv', 'wmv', '3gp', 'ts', 'm4v', 'm4a'
+const DIRECT_MEDIA_FORMATS = [
+  'mp4', 'webm', 'ogg', 'ogv', 'mkv', 'avi', 'mov', 'flv', 'wmv', '3gp', 'ts', 'm4v', 'm4a', 'mp3'
 ];
 
 const STREAM_PROTOCOLS = {
@@ -220,16 +221,17 @@ export function detectVideoSource(url: string): VideoSourceInfo {
   // Check for local file URIs first (file://, content://, or absolute paths)
   if (trimmedUrl.startsWith('file://') || 
       trimmedUrl.startsWith('content://') ||
-      /^[\/].*\.(mp4|webm|ogg|ogv|mkv|avi|mov|flv|wmv|m4v|3gp|ts|m4a)$/i.test(trimmedUrl)) {
+      /^[\/].*\.(mp4|webm|ogg|ogv|mkv|avi|mov|flv|wmv|m4v|3gp|ts|m4a|mp3)$/i.test(trimmedUrl)) {
     console.log('[VideoSourceDetector] Detected local file:', trimmedUrl);
     // Extract file extension
-    const extensionMatch = trimmedUrl.match(/\.(mp4|webm|ogg|ogv|mkv|avi|mov|flv|wmv|m4v|3gp|ts|m4a)(?:[?#].*)?$/i);
+    const extensionMatch = trimmedUrl.match(/\.(mp4|webm|ogg|ogv|mkv|avi|mov|flv|wmv|m4v|3gp|ts|m4a|mp3)(?:[?#].*)?$/i);
     const extension = extensionMatch ? extensionMatch[1].toLowerCase() : 'mp4';
+    const isMp3 = extension === 'mp3';
     return {
-      type: 'direct',
-      platform: 'Local File',
+      type: isMp3 ? 'mp3' : 'direct',
+      platform: isMp3 ? 'Local Audio' : 'Local File',
       requiresPremium: false,
-      streamType: extension as 'mp4' | 'webm' | 'ogg' | 'mkv' | 'avi' | 'mov',
+      streamType: extension as 'mp4' | 'webm' | 'ogg' | 'mkv' | 'avi' | 'mov' | 'mp3',
       requiresWebView: false,
     };
   }
@@ -280,15 +282,16 @@ export function detectVideoSource(url: string): VideoSourceInfo {
   }
 
   // Now check direct video file formats (mp4, webm, etc.)
-  const fileExtMatch = normalizedUrl.match(new RegExp(`\\.(${DIRECT_VIDEO_FORMATS.join('|')})(\\?.*)?$`, 'i'));
+  const fileExtMatch = normalizedUrl.match(new RegExp(`\\.(${DIRECT_MEDIA_FORMATS.join('|')})(\\?.*)?$`, 'i'));
   if (fileExtMatch) {
     const ext = fileExtMatch[1];
-    console.log('[VideoSourceDetector] Detected direct video file:', ext);
+    const isMp3 = ext === 'mp3';
+    console.log(`[VideoSourceDetector] Detected direct ${isMp3 ? 'audio' : 'video'} file:`, ext);
     return {
-      type: 'direct',
-      platform: 'Direct Video',
+      type: isMp3 ? 'mp3' : 'direct',
+      platform: isMp3 ? 'MP3 Audio' : 'Direct Video',
       requiresPremium: false,
-      streamType: ext as 'mp4' | 'webm' | 'ogg' | 'mkv' | 'avi' | 'mov',
+      streamType: ext as 'mp4' | 'webm' | 'ogg' | 'mkv' | 'avi' | 'mov' | 'mp3',
       requiresWebView: false,
     };
   }
