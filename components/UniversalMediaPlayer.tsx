@@ -1,3 +1,4 @@
+'''
 import React, { useState, useRef, useEffect, useCallback, useImperativeHandle } from 'react';
 import {
   View,
@@ -563,3 +564,4 @@ const styles = StyleSheet.create({
 });
 
 export default UniversalMediaPlayer;
+'''

@@ -303,7 +303,7 @@ export default function PlayerScreen() {
         setVoiceStatus(t('command_received', { command }));
 
         // Determine media type for logging
-        const mediaType = 'Video';
+        const mediaType = videoSource ? getMediaType(videoSource.uri) : 'Other';
         
         // Log command to Supabase
         if (voiceControl && voiceControl.logCommand) {
@@ -408,7 +408,7 @@ export default function PlayerScreen() {
         }
       };
     }
-  }, [volume, skipForward, skipBackward, setVideoVolume, setVideoSpeed, t]);
+  }, [videoPlayer, volume, skipForward, skipBackward, setVideoVolume, setVideoSpeed, t]);
 
   // Update video player state (Simplified, as UniversalMediaPlayer handles most state internally)
   useEffect(() => {
@@ -790,24 +790,24 @@ export default function PlayerScreen() {
   const executeVoiceCommand = (command: string) => {
     if (command.includes(t("play")) || command.includes("play")) {
       try {
-        if (mediaRef.current && typeof mediaRef.current.play === 'function') {
-          mediaRef.current.play();
+        if (videoPlayer && typeof videoPlayer.play === 'function') {
+          videoPlayer.play();
         }
       } catch (error) {
         console.error('Error playing video:', error);
       }
     } else if (command.includes(t("pause")) || command.includes("pause")) {
       try {
-        if (mediaRef.current && typeof mediaRef.current.pause === 'function') {
-          mediaRef.current.pause();
+        if (videoPlayer && typeof videoPlayer.pause === 'function') {
+          videoPlayer.pause();
         }
       } catch (error) {
         console.error('Error pausing video:', error);
       }
     } else if (command.includes(t("stop")) || command.includes("stop")) {
       try {
-        if (mediaRef.current && typeof mediaRef.current.stop === 'function') {
-          mediaRef.current.stop();
+        if (videoPlayer && typeof videoPlayer.pause === 'function') {
+          videoPlayer.pause();
         }
       } catch (error) {
         console.error('Error stopping video:', error);
@@ -828,8 +828,8 @@ export default function PlayerScreen() {
     }
     else if (command.includes(t("mute")) || command.includes("mute")) {
       try {
-        if (mediaRef.current && typeof mediaRef.current.mute === 'function') {
-          mediaRef.current.mute();
+        if (videoPlayer) {
+          videoPlayer.muted = true;
           setIsMuted(true);
         }
       } catch (error) {
@@ -837,8 +837,8 @@ export default function PlayerScreen() {
       }
     } else if (command.includes(t("unmute")) || command.includes("unmute")) {
       try {
-        if (mediaRef.current && typeof mediaRef.current.unmute === 'function') {
-          mediaRef.current.unmute();
+        if (videoPlayer) {
+          videoPlayer.muted = false;
           setIsMuted(false);
         }
       } catch (error) {
@@ -910,18 +910,18 @@ export default function PlayerScreen() {
   const executeCustomAction = (action: string) => {
     switch (action) {
       case "play":
-        if (mediaRef.current && typeof mediaRef.current.play === 'function') {
-          mediaRef.current.play();
+        if (videoPlayer && typeof videoPlayer.play === 'function') {
+          videoPlayer.play();
         }
         break;
       case "pause":
-        if (mediaRef.current && typeof mediaRef.current.pause === 'function') {
-          mediaRef.current.pause();
+        if (videoPlayer && typeof videoPlayer.pause === 'function') {
+          videoPlayer.pause();
         }
         break;
       case "stop":
-        if (mediaRef.current && typeof mediaRef.current.stop === 'function') {
-          mediaRef.current.stop();
+        if (videoPlayer && typeof videoPlayer.pause === 'function') {
+          videoPlayer.pause();
         }
         break;
       case "forward_10":
@@ -946,14 +946,14 @@ export default function PlayerScreen() {
         setVideoVolume(1.0);
         break;
       case "mute":
-        if (mediaRef.current && typeof mediaRef.current.mute === 'function') {
-          mediaRef.current.mute();
+        if (videoPlayer) {
+          videoPlayer.muted = true;
           setIsMuted(true);
         }
         break;
       case "unmute":
-        if (mediaRef.current && typeof mediaRef.current.unmute === 'function') {
-          mediaRef.current.unmute();
+        if (videoPlayer) {
+          videoPlayer.muted = false;
           setIsMuted(false);
         }
         break;
@@ -1004,15 +1004,13 @@ export default function PlayerScreen() {
   };
 
   const handleProgressBarPress = async (event: any) => {
-    if (!mediaRef.current || duration === 0) return;
+    if (!videoPlayer || duration === 0) return;
     try {
       const { locationX } = event.nativeEvent;
       const progressBarWidth = Dimensions.get("window").width - 32;
       const percentage = locationX / progressBarWidth;
       const newPosition = (percentage * duration) / 1000;
-      if (typeof mediaRef.current.seek === 'function') {
-        mediaRef.current.seek(newPosition);
-      }
+      videoPlayer.currentTime = newPosition;
     } catch (error) {
       console.error('Error seeking video:', error);
     }
@@ -1429,12 +1427,10 @@ export default function PlayerScreen() {
             }}
             onTrianglePress={togglePlayPause}
             onSquarePress={() => {
-              if (mediaRef.current) {
-                if (typeof mediaRef.current.seek === 'function') {
-                  mediaRef.current.seek(0);
-                }
-                if (typeof mediaRef.current.play === 'function') {
-                  mediaRef.current.play();
+              if (videoPlayer) {
+                videoPlayer.currentTime = 0;
+                if (typeof videoPlayer.play === 'function') {
+                  videoPlayer.play();
                 }
               }
             }}

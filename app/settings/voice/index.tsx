@@ -1,7 +1,7 @@
-import React, { useCallback } from "react";
+import React from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { useRouter } from "expo-router";
-import { Mic, ChevronRight, MessageSquare } from "lucide-react-native";
+import { Mic, ChevronRight } from "lucide-react-native";
 import Colors from "@/constants/colors";
 import { useTranslation } from "@/hooks/useTranslation";
 
@@ -11,22 +11,16 @@ export default function VoiceIndexScreen() {
 
   const voiceItems = [
     {
-      icon: MessageSquare,
+      icon: Mic,
       label: t("custom_commands"),
-      route: "/settings/voice/commands" as const,
-      description: "Create and manage custom voice commands",
+      route: "/settings/voice/commands",
     },
     {
       icon: Mic,
       label: t("siri_voice_assistant"),
-      route: "/settings/voice/assistant" as const,
-      description: "Configure voice assistant settings",
+      route: "/settings/voice/assistant",
     },
   ];
-
-  const handleNavigation = useCallback((route: string) => {
-    router.push(route as any);
-  }, [router]);
 
   return (
     <View style={styles.container}>
@@ -46,18 +40,12 @@ export default function VoiceIndexScreen() {
           return (
             <Pressable
               key={index}
-              style={({ pressed }) => [
-                styles.item,
-                pressed && styles.itemPressed,
-              ]}
-              onPress={() => handleNavigation(item.route)}
+              style={styles.item}
+              onPress={() => router.push(item.route as any)}
             >
-              <View style={styles.itemIconContainer}>
-                <Icon size={22} color={Colors.primary.accent} strokeWidth={2} />
-              </View>
               <View style={styles.itemContent}>
+                <Icon size={20} color={Colors.primary.accent} />
                 <Text style={styles.itemText}>{item.label}</Text>
-                <Text style={styles.itemDescription}>{item.description}</Text>
               </View>
               <ChevronRight size={20} color={Colors.primary.textSecondary} />
             </Pressable>
@@ -114,32 +102,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.card.border,
   },
-  itemPressed: {
-    opacity: 0.7,
-    backgroundColor: Colors.primary.accent + "10",
-  },
-  itemIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: Colors.primary.accent + "15",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-  },
   itemContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
     flex: 1,
-    flexDirection: "column",
   },
   itemText: {
     fontSize: 16,
     color: Colors.primary.text,
-    fontWeight: "600" as const,
-    marginBottom: 4,
-  },
-  itemDescription: {
-    fontSize: 13,
-    color: Colors.primary.textSecondary,
-    lineHeight: 18,
+    fontWeight: "500" as const,
   },
 });
