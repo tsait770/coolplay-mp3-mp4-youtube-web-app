@@ -332,23 +332,27 @@ export const [MembershipProvider, useMembership] = createContextHook(() => {
   }, [state, saveMembershipData]);
 
   useEffect(() => {
+    // Defer more on web to prevent blocking
+    const delay = typeof window !== 'undefined' ? 1000 : 100;
     const timeoutId = setTimeout(() => {
       loadMembershipData();
-    }, 100);
+    }, delay);
     return () => clearTimeout(timeoutId);
   }, [loadMembershipData]);
   
   useEffect(() => {
+    const delay = typeof window !== 'undefined' ? 1500 : 150;
     const timeoutId = setTimeout(() => {
       loadDevices();
-    }, 150);
+    }, delay);
     return () => clearTimeout(timeoutId);
   }, [loadDevices]);
   
   useEffect(() => {
+    const delay = typeof window !== 'undefined' ? 2000 : 500;
     const timeoutId = setTimeout(() => {
       updateUsageStats();
-    }, 500);
+    }, delay);
     return () => clearTimeout(timeoutId);
   }, [state.dailyUsageCount, state.usageCount, updateUsageStats]);
 

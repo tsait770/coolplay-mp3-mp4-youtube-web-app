@@ -63,11 +63,15 @@ export const [BookmarkProvider, useBookmarks] = createContextHook(() => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load data from storage
+  // Load data from storage - defer on web
   useEffect(() => {
-    loadData();
+    const delay = typeof window !== 'undefined' ? 500 : 0;
+    const timeoutId = setTimeout(() => {
+      loadData();
+    }, delay);
     
     return () => {
+      clearTimeout(timeoutId);
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }

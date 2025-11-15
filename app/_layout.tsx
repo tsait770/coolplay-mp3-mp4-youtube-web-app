@@ -265,15 +265,24 @@ export default function RootLayout() {
         console.log('[App] Starting initialization...');
         const startTime = Date.now();
         
+        // Immediately set as initialized to prevent hydration timeout
         setIsInitialized(true);
-        setProvidersReady(true);
+        
+        // Use requestAnimationFrame for web compatibility
+        if (Platform.OS === 'web') {
+          requestAnimationFrame(() => {
+            setProvidersReady(true);
+          });
+        } else {
+          setProvidersReady(true);
+        }
         
         const duration = Date.now() - startTime;
         console.log(`[App] Initialization completed in ${duration}ms`);
         
         setTimeout(() => {
           SplashScreen.hideAsync();
-        }, 100);
+        }, Platform.OS === 'web' ? 0 : 100);
         
         setTimeout(async () => {
           try {
@@ -333,16 +342,11 @@ export default function RootLayout() {
     );
   }
 
-  if (!isInitialized || !providersReady) {
+  if (!isInitialized) {
     return (
       <View style={styles.loadingContainer} testID="app-loading">
         <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>
-          {!isInitialized ? 'Initializing App...' : 'Loading Providers...'}
-        </Text>
-        <Text style={[styles.loadingText, { fontSize: 12, marginTop: 10, opacity: 0.6 }]}>
-          Please wait... This should only take a moment
-        </Text>
+        <Text style={styles.loadingText}>Starting...</Text>
       </View>
     );
   }

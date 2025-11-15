@@ -63,6 +63,9 @@ export const [StorageProvider, useStorage] = createContextHook(() => {
     if (!cleanupRun.current) {
       cleanupRun.current = true;
       
+      // Defer cleanup even more on web to prevent blocking
+      const delay = typeof window !== 'undefined' ? 5000 : 3000;
+      
       setTimeout(() => {
         (async () => {
           try {
@@ -70,7 +73,11 @@ export const [StorageProvider, useStorage] = createContextHook(() => {
             const allKeys = await AsyncStorage.getAllKeys();
             const corruptedKeys: string[] = [];
             
-            const maxCheck = Math.min(allKeys.length, 50);
+            // Reduce check count on web
+            const maxCheck = typeof window !== 'undefined' 
+              ? Math.min(allKeys.length, 20) 
+              : Math.min(allKeys.length, 50);
+            
             for (let i = 0; i < maxCheck; i++) {
               const key = allKeys[i];
               try {
@@ -107,7 +114,7 @@ export const [StorageProvider, useStorage] = createContextHook(() => {
             console.error('[StorageProvider] Deferred cleanup failed:', error?.message || error);
           }
         })();
-      }, 2000);
+      }, delay);
     }
   }, []);
 
