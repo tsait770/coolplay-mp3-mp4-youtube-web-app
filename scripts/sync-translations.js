@@ -12,6 +12,7 @@ const path = require('path');
 
 const L10N_DIR = path.resolve(process.cwd(), 'l10n');
 const REPORT_FILE = path.resolve(process.cwd(), 'translation_missing_report.md');
+const ADDITIONAL_KEYS_FILE = path.resolve(L10N_DIR, 'additional-keys.json');
 
 function readJSON(fp) {
   return JSON.parse(fs.readFileSync(fp, 'utf8'));
@@ -20,8 +21,27 @@ function readJSON(fp) {
 function writeJSON(fp, obj) {
   const sorted = Object.keys(obj)
     .sort((a, b) => a.localeCompare(b))
-    .reduce((acc, k) => { acc[k] = obj[k]; return acc; }, {});
+    .reduce((acc, k) => {
+      acc[k] = obj[k];
+      return acc;
+    }, {});
   fs.writeFileSync(fp, JSON.stringify(sorted, null, 2) + '\n', 'utf8');
+}
+
+function humanizeKey(key) {
+  const normalized = key
+    .replace(/^[^a-zA-Z0-9]+/, '')
+    .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!normalized) {
+    return key;
+  }
+  const lower = normalized.toLowerCase();
+  return lower
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 }
 
 function main() {
@@ -49,14 +69,31 @@ function main() {
   locales.forEach(l => Object.keys(l.data).forEach(k => allKeys.add(k)));
   baseKeys.forEach(k => allKeys.add(k));
 
+  if (fs.existsSync(ADDITIONAL_KEYS_FILE)) {
+    const additionalKeys = readJSON(ADDITIONAL_KEYS_FILE);
+    if (Array.isArray(additionalKeys)) {
+      additionalKeys.forEach(k => allKeys.add(k));
+    }
+  }
+
   const summary = [];
 
   locales.forEach(l => {
     const beforeCount = Object.keys(l.data).length;
     let missing = 0;
     for (const key of allKeys) {
-      if (!(key in l.data)) {
-        l.data[key] = base.data[key] ?? base.data[key] ?? '';
+      if (!(key in l.data) || l.data[key] === '') {
+        const baseValue = base.data[key];
+        const fallback = typeof baseValue === 'string' && baseValue.trim() !== '' ? baseValue : humanizeKey(key);
+        if (!(key in l.data) || l.data[key] === '') {
+          l.data[key] = fallback;
+        }
+        if (!(key in base.data) || base.data[key] === '') {
+          base.data[key] = fallback;
+        }
+        if (l.code !== base.code && (l.data[key] === fallback || l.data[key] === '')) {
+          l.data[key] = fallback;
+        }
         missing++;
       }
     }
@@ -64,6 +101,8 @@ function main() {
     const afterCount = Object.keys(l.data).length;
     summary.push({ code: l.code, before: beforeCount, after: afterCount, missing });
   });
+
+  writeJSON(base.path, base.data);
 
   const reportLines = [
     `# Translation Sync Report`,
