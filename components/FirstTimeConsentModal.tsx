@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,21 +6,17 @@ import {
   Modal,
   TouchableOpacity,
   ScrollView,
-  Switch,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Linking,
 } from 'react-native';
 import Colors from '@/constants/colors';
 import { useTranslation } from '@/hooks/useTranslation';
 
 interface FirstTimeConsentModalProps {
   visible: boolean;
-  onAccept: (permissions: ConsentPermissions) => void;
+  onAccept: () => void;
   onDecline: () => void;
-}
-
-export interface ConsentPermissions {
-  microphone: boolean;
-  storage: boolean;
-  analytics: boolean;
 }
 
 export default function FirstTimeConsentModal({
@@ -29,125 +25,121 @@ export default function FirstTimeConsentModal({
   onDecline,
 }: FirstTimeConsentModalProps) {
   const { t } = useTranslation();
-  const [permissions, setPermissions] = useState<ConsentPermissions>({
-    microphone: false,
-    storage: false,
-    analytics: false,
-  });
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
+  const [showScrollHint, setShowScrollHint] = useState(true);
 
-  const togglePermission = (key: keyof ConsentPermissions) => {
-    setPermissions(prev => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+    const paddingToBottom = 20;
+    const isAtBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom;
+    
+    if (isAtBottom && !hasScrolledToBottom) {
+      setHasScrolledToBottom(true);
+      setShowScrollHint(false);
+    }
   };
 
-  const canProceed = permissions.microphone && permissions.storage;
+  const openPrivacyPolicy = () => {
+    Linking.openURL('https://coolplay.app/privacy');
+  };
+
+  const openTermsOfService = () => {
+    Linking.openURL('https://coolplay.app/terms');
+  };
 
   return (
     <Modal
       visible={visible}
-      animationType="slide"
+      animationType="fade"
       transparent={true}
       onRequestClose={onDecline}
     >
       <View style={styles.overlay}>
         <View style={styles.modalContainer}>
+          <View style={styles.header}>
+            <Text style={styles.title}>{t('privacy_policy')}</Text>
+            <Text style={styles.subtitle}>{t('please_read_carefully')}</Text>
+          </View>
+
           <ScrollView
+            ref={scrollViewRef}
             style={styles.scrollView}
-            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={true}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
           >
-            <Text style={styles.title}>{t('welcome_to_coolplay')}</Text>
-            <Text style={styles.subtitle}>{t('first_time_consent_intro')}</Text>
+            <Text style={styles.lastUpdated}>{t('last_updated')}: 2025-01-11</Text>
 
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>{t('required_permissions')}</Text>
-              
-              <View style={styles.permissionItem}>
-                <View style={styles.permissionInfo}>
-                  <Text style={styles.permissionTitle}>
-                    {t('microphone_permission')}
-                  </Text>
-                  <Text style={styles.permissionDesc}>
-                    {t('microphone_consent_desc')}
-                  </Text>
-                </View>
-                <Switch
-                  value={permissions.microphone}
-                  onValueChange={() => togglePermission('microphone')}
-                  trackColor={{
-                    false: Colors.card.border,
-                    true: Colors.primary.accent,
-                  }}
-                  thumbColor={Colors.primary.text}
-                />
-              </View>
+            <Text style={styles.sectionTitle}>1. {t('introduction')}</Text>
+            <Text style={styles.paragraph}>{t('privacy_policy_intro')}</Text>
 
-              <View style={styles.permissionItem}>
-                <View style={styles.permissionInfo}>
-                  <Text style={styles.permissionTitle}>
-                    {t('storage_permission')}
-                  </Text>
-                  <Text style={styles.permissionDesc}>
-                    {t('storage_consent_desc')}
-                  </Text>
-                </View>
-                <Switch
-                  value={permissions.storage}
-                  onValueChange={() => togglePermission('storage')}
-                  trackColor={{
-                    false: Colors.card.border,
-                    true: Colors.primary.accent,
-                  }}
-                  thumbColor={Colors.primary.text}
-                />
-              </View>
+            <Text style={styles.sectionTitle}>2. {t('information_we_collect')}</Text>
+            <Text style={styles.paragraph}>{t('information_we_collect_desc')}</Text>
+            <Text style={styles.bulletPoint}>• {t('account_information')}</Text>
+            <Text style={styles.bulletPoint}>• {t('usage_data')}</Text>
+            <Text style={styles.bulletPoint}>• {t('device_information')}</Text>
+            <Text style={styles.bulletPoint}>• {t('voice_data')}</Text>
+
+            <Text style={styles.sectionTitle}>3. {t('voice_data_collection')}</Text>
+            <View style={styles.highlightBox}>
+              <Text style={styles.highlightTitle}>{t('voice_data_title')}</Text>
+              <Text style={styles.highlightText}>• {t('voice_collected_data')}</Text>
+              <Text style={styles.highlightText}>• {t('voice_processing_method')}</Text>
+              <Text style={styles.highlightText}>• {t('voice_storage_duration')}</Text>
+              <Text style={styles.highlightText}>• {t('voice_third_party')}</Text>
+              <Text style={styles.highlightText}>• {t('voice_opt_out')}</Text>
             </View>
 
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>{t('optional_permissions')}</Text>
-              
-              <View style={styles.permissionItem}>
-                <View style={styles.permissionInfo}>
-                  <Text style={styles.permissionTitle}>
-                    {t('analytics_permission')}
-                  </Text>
-                  <Text style={styles.permissionDesc}>
-                    {t('analytics_consent_desc')}
-                  </Text>
-                </View>
-                <Switch
-                  value={permissions.analytics}
-                  onValueChange={() => togglePermission('analytics')}
-                  trackColor={{
-                    false: Colors.card.border,
-                    true: Colors.primary.accent,
-                  }}
-                  thumbColor={Colors.primary.text}
-                />
-              </View>
+            <Text style={styles.sectionTitle}>4. {t('third_party_services')}</Text>
+            <Text style={styles.paragraph}>{t('third_party_services_desc')}</Text>
+            <View style={styles.highlightBox}>
+              <Text style={styles.highlightTitle}>YouTube API Services</Text>
+              <Text style={styles.highlightText}>{t('youtube_api_notice')}</Text>
             </View>
 
-            <View style={styles.privacyNotice}>
-              <Text style={styles.privacyText}>
-                {t('consent_privacy_notice')}
-              </Text>
-            </View>
+            <Text style={styles.sectionTitle}>5. {t('data_storage')}</Text>
+            <Text style={styles.paragraph}>{t('data_storage_desc')}</Text>
+
+            <Text style={styles.sectionTitle}>6. {t('permissions_required')}</Text>
+            <Text style={styles.paragraph}>{t('permissions_required_desc')}</Text>
+            <Text style={styles.bulletPoint}>• {t('microphone_permission')}: {t('microphone_permission_desc')}</Text>
+            <Text style={styles.bulletPoint}>• {t('storage_permission')}: {t('storage_permission_desc')}</Text>
+            <Text style={styles.bulletPoint}>• {t('internet_permission')}: {t('internet_permission_desc')}</Text>
+
+            <Text style={styles.sectionTitle}>7. {t('your_rights')}</Text>
+            <Text style={styles.paragraph}>{t('your_rights_desc')}</Text>
+            <Text style={styles.bulletPoint}>• {t('access_your_data')}</Text>
+            <Text style={styles.bulletPoint}>• {t('delete_your_data')}</Text>
+            <Text style={styles.bulletPoint}>• {t('revoke_permissions')}</Text>
+
+            <Text style={styles.sectionTitle}>8. {t('contact_us')}</Text>
+            <Text style={styles.paragraph}>{t('privacy_contact')}</Text>
+            <Text style={styles.contactInfo}>support@coolplay.com</Text>
+
+            <View style={styles.bottomPadding} />
           </ScrollView>
+
+          {showScrollHint && (
+            <View style={styles.scrollHint}>
+              <Text style={styles.scrollHintText}>↓ {t('scroll_to_read_full_content')} ↓</Text>
+            </View>
+          )}
 
           <View style={styles.buttonContainer}>
             <TouchableOpacity
               style={[
                 styles.acceptButton,
-                !canProceed && styles.disabledButton,
+                !hasScrolledToBottom && styles.disabledButton,
               ]}
-              onPress={() => onAccept(permissions)}
-              disabled={!canProceed}
+              onPress={onAccept}
+              disabled={!hasScrolledToBottom}
             >
               <Text
                 style={[
                   styles.acceptButtonText,
-                  !canProceed && styles.disabledButtonText,
+                  !hasScrolledToBottom && styles.disabledButtonText,
                 ]}
               >
                 {t('accept_and_continue')}
@@ -155,7 +147,7 @@ export default function FirstTimeConsentModal({
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.declineButton} onPress={onDecline}>
-              <Text style={styles.declineButtonText}>{t('decline')}</Text>
+              <Text style={styles.declineButtonText}>{t('cancel')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -167,115 +159,167 @@ export default function FirstTimeConsentModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center' as const,
-    alignItems: 'center' as const,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'flex-end' as const,
   },
   modalContainer: {
-    width: '90%',
-    maxHeight: '85%',
+    width: '100%',
+    height: '92%',
     backgroundColor: Colors.primary.bg,
-    borderRadius: 16,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     overflow: 'hidden' as const,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  header: {
+    paddingTop: 24,
+    paddingBottom: 16,
+    paddingHorizontal: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.card.border,
+    backgroundColor: Colors.primary.bg,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '700' as const,
+    color: Colors.primary.text,
+    textAlign: 'center' as const,
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 13,
+    color: Colors.primary.textSecondary,
+    textAlign: 'center' as const,
   },
   scrollView: {
     flex: 1,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: '700' as const,
-    color: Colors.primary.text,
-    textAlign: 'center' as const,
-    marginTop: 24,
-    marginBottom: 8,
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
   },
-  subtitle: {
-    fontSize: 14,
+  lastUpdated: {
+    fontSize: 11,
     color: Colors.primary.textSecondary,
+    fontStyle: 'italic' as const,
+    marginBottom: 16,
     textAlign: 'center' as const,
-    paddingHorizontal: 20,
-    marginBottom: 24,
-    lineHeight: 20,
-  },
-  section: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600' as const,
+    fontSize: 17,
+    fontWeight: '700' as const,
     color: Colors.primary.text,
-    marginBottom: 16,
+    marginTop: 20,
+    marginBottom: 12,
+    lineHeight: 24,
   },
-  permissionItem: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    backgroundColor: `${Colors.primary.accent}10`,
-    padding: 16,
-    borderRadius: 12,
+  paragraph: {
+    fontSize: 14,
+    color: Colors.primary.textSecondary,
+    lineHeight: 22,
     marginBottom: 12,
   },
-  permissionInfo: {
-    flex: 1,
-    marginRight: 12,
-  },
-  permissionTitle: {
-    fontSize: 15,
-    fontWeight: '600' as const,
-    color: Colors.primary.text,
-    marginBottom: 4,
-  },
-  permissionDesc: {
+  bulletPoint: {
     fontSize: 13,
     color: Colors.primary.textSecondary,
-    lineHeight: 18,
+    lineHeight: 22,
+    marginLeft: 8,
+    marginBottom: 6,
   },
-  privacyNotice: {
-    backgroundColor: `${Colors.primary.accent}15`,
-    padding: 16,
-    marginHorizontal: 20,
-    marginBottom: 20,
-    borderRadius: 8,
-    borderLeftWidth: 3,
+  highlightBox: {
+    backgroundColor: `${Colors.primary.accent}12`,
+    borderLeftWidth: 4,
     borderLeftColor: Colors.primary.accent,
+    padding: 16,
+    borderRadius: 10,
+    marginVertical: 12,
   },
-  privacyText: {
-    fontSize: 12,
+  highlightTitle: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: Colors.primary.text,
+    marginBottom: 10,
+  },
+  highlightText: {
+    fontSize: 13,
     color: Colors.primary.textSecondary,
-    lineHeight: 18,
+    lineHeight: 20,
+    marginBottom: 6,
+  },
+  contactInfo: {
+    fontSize: 14,
+    color: Colors.primary.accent,
+    fontWeight: '600' as const,
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  bottomPadding: {
+    height: 40,
+  },
+  scrollHint: {
+    position: 'absolute' as const,
+    bottom: 120,
+    left: 0,
+    right: 0,
+    alignItems: 'center' as const,
+    paddingVertical: 12,
+    backgroundColor: `${Colors.primary.accent}20`,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: Colors.primary.accent,
+  },
+  scrollHintText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.primary.accent,
   },
   buttonContainer: {
     padding: 20,
+    paddingBottom: 32,
     borderTopWidth: 1,
     borderTopColor: Colors.card.border,
+    backgroundColor: Colors.primary.bg,
   },
   acceptButton: {
     backgroundColor: Colors.primary.accent,
-    paddingVertical: 14,
-    borderRadius: 8,
+    paddingVertical: 16,
+    borderRadius: 12,
     marginBottom: 12,
+    shadowColor: Colors.primary.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
   disabledButton: {
     backgroundColor: Colors.card.border,
-    opacity: 0.5,
+    opacity: 0.4,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   acceptButtonText: {
     color: Colors.primary.text,
     fontSize: 16,
-    fontWeight: '600' as const,
+    fontWeight: '700' as const,
     textAlign: 'center' as const,
   },
   disabledButtonText: {
     color: Colors.primary.textSecondary,
   },
   declineButton: {
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.card.border,
   },
   declineButtonText: {
     color: Colors.primary.textSecondary,
-    fontSize: 14,
-    fontWeight: '500' as const,
+    fontSize: 15,
+    fontWeight: '600' as const,
     textAlign: 'center' as const,
   },
 });
