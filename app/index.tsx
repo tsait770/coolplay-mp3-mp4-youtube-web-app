@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import Colors from '@/constants/colors';
-import FirstTimeConsentModal, { ConsentPermissions } from '@/components/FirstTimeConsentModal';
+import FirstTimeConsentModal from '@/components/FirstTimeConsentModal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Index() {
@@ -64,13 +64,19 @@ export default function Index() {
     initApp();
   }, [router, providersReady]);
 
-  const handleConsentAccept = async (permissions: ConsentPermissions) => {
+  const handleConsentAccept = async () => {
     try {
-      console.log('[Index] User accepted consent with permissions:', permissions);
+      console.log('[Index] User accepted consent');
+      
+      const consentData = {
+        microphone: true,
+        storage: true,
+        analytics: true
+      };
       
       // Save consent status
       await AsyncStorage.setItem('user_consent_given', 'true');
-      await AsyncStorage.setItem('user_permissions', JSON.stringify(permissions));
+      await AsyncStorage.setItem('user_permissions', JSON.stringify(consentData));
       
       setShowConsent(false);
       setIsReady(true);
