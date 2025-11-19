@@ -1,10 +1,20 @@
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseUrl = 
+  process.env.EXPO_PUBLIC_SUPABASE_URL || 
+  Constants.expoConfig?.extra?.EXPO_PUBLIC_SUPABASE_URL ||
+  'https://ukpskaspdzinzpsdoodi.supabase.co';
+
+const supabaseAnonKey = 
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 
+  Constants.expoConfig?.extra?.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVrcHNrYXNwZHppbnpwc2Rvb2RpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI5NDA0MjgsImV4cCI6MjA3ODUxNjQyOH0.HdmSGe_YEs5hVFTgm7QMzmQu3xe8i95carC8wxSjGfU';
 
 if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Supabase URL:', supabaseUrl);
+  console.error('Supabase Key exists:', !!supabaseAnonKey);
   throw new Error(
     'Missing Supabase environment variables. Please check your .env file and ensure EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY are set.'
   );
