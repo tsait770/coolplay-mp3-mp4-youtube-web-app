@@ -77,14 +77,21 @@ export default function FirstTimeConsentModal({
             </View>
 
             <View style={styles.linkContainer}>
-              <Text style={styles.linkText}>{t('by_continuing_you_agree')}</Text>
+              <Text style={styles.linkText}>
+                {t('by_continuing_you_agree')}{' '}
+              </Text>
               <TouchableOpacity onPress={openPrivacyPolicy}>
                 <Text style={styles.link}>{t('privacy_policy')}</Text>
               </TouchableOpacity>
-              <Text style={styles.linkText}> {t('and')} </Text>
+              <Text style={styles.linkText}>
+                {' '}{t('and')}{' '}
+              </Text>
               <TouchableOpacity onPress={openTermsOfService}>
                 <Text style={styles.link}>{t('terms_of_service')}</Text>
               </TouchableOpacity>
+              <Text style={styles.linkText}>
+                {'.'}  
+              </Text>
             </View>
           </ScrollView>
 
