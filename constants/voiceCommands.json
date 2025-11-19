@@ -430,18 +430,18 @@
       "slot": {"speed": 1.25},
       "usage_count": 1,
       "utterances": {
-        "en": ["1.25x speed", "1.25 speed"],
-        "zh-TW": ["1.25 倍速"],
-        "zh-CN": ["1.25 倍速"],
-        "es": ["velocidad 1.25x"],
-        "pt-BR": ["velocidade 1.25x"],
-        "pt": ["velocidade 1.25x"],
-        "de": ["1,25-fache Geschwindigkeit"],
-        "fr": ["vitesse 1,25x"],
-        "ru": ["скорость 1,25x"],
-        "ar": ["سرعة 1.25x"],
-        "ja": ["1.25倍速"],
-        "ko": ["1.25배속"]
+        "en": ["1.25x speed", "1.25 speed", "one point two five speed"],
+        "zh-TW": ["1.25 倍速", "1.25倍速"],
+        "zh-CN": ["1.25 倍速", "1.25倍速"],
+        "es": ["velocidad 1.25x", "1.25 velocidad"],
+        "pt-BR": ["velocidade 1.25x", "1.25 velocidade"],
+        "pt": ["velocidade 1.25x", "1.25 velocidade"],
+        "de": ["1,25-fache Geschwindigkeit", "1,25 Geschwindigkeit"],
+        "fr": ["vitesse 1,25x", "1,25 vitesse"],
+        "ru": ["скорость 1,25x", "1,25 скорость"],
+        "ar": ["سرعة 1.25x", "سرعة واحد وربع"],
+        "ja": ["1.25倍速", "1点25倍速"],
+        "ko": ["1.25배속", "일점이오배속"]
       }
     },
     {
