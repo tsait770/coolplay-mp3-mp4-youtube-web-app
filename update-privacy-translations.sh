@@ -1,15 +1,29 @@
 #!/bin/bash
+# CoolPlay Privacy Compliance Translation Update Script
+# 隱私合規翻譯更新腳本
 
-echo "🚀 Starting privacy & compliance translation update..."
-echo ""
+echo "🔄 Updating privacy compliance translations..."
+echo "正在更新隱私合規翻譯..."
 
-node scripts/add-privacy-compliance-translations.js
+node scripts/add-privacy-compliance-keys.js
 
-echo ""
-echo "✅ Translation update complete!"
-echo ""
-echo "📝 Next steps:"
-echo "1. Test the app on both iOS and Android"
-echo "2. Verify consent modal appears on first launch"
-echo "3. Check privacy policy displays correctly in all languages"
-echo "4. Test the reset consent function in developer options"
+if [ $? -eq 0 ]; then
+    echo ""
+    echo "✅ Translation update completed successfully!"
+    echo "✅ 翻譯更新成功完成！"
+    echo ""
+    echo "📋 Next steps / 下一步:"
+    echo "1. Review the changes in l10n/*.json files"
+    echo "   檢查 l10n/*.json 文件的變更"
+    echo "2. Test the app on real devices"
+    echo "   在真實設備上測試應用程式"
+    echo "3. Verify privacy policy displays correctly in all languages"
+    echo "   驗證隱私政策在所有語言中正確顯示"
+else
+    echo ""
+    echo "❌ Translation update failed!"
+    echo "❌ 翻譯更新失敗！"
+    echo "Please check the error messages above."
+    echo "請檢查上方的錯誤訊息。"
+    exit 1
+fi

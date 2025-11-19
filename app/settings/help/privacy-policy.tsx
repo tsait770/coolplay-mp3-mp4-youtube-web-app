@@ -135,6 +135,26 @@ export default function PrivacyPolicyScreen() {
           <Text style={styles.bulletPoint}>• {t("opt_out")}</Text>
           <Text style={styles.bulletPoint}>• {t("revoke_permissions")}</Text>
 
+          <Text style={styles.sectionTitle}>{t("coppa_compliance")}</Text>
+          <Text style={styles.highlightBox}>
+            <Text style={styles.highlightTitle}>{t("coppa_compliance")}{' \n'}</Text>
+            <Text style={styles.highlightText}>
+              {t("coppa_compliance_desc")}
+            </Text>
+            <Text style={styles.highlightText}>
+              {'\n\n'}• {t("age_restriction")}
+            </Text>
+            <Text style={styles.highlightText}>
+              {'\n'}• {t("parental_consent_required")}
+            </Text>
+            <Text style={styles.highlightText}>
+              {'\n'}• {t("coppa_data_protection")}
+            </Text>
+            <Text style={styles.highlightText}>
+              {'\n\n'}{t("coppa_contact")}
+            </Text>
+          </Text>
+
           <Text style={styles.sectionTitle}>{t("contact_us")}</Text>
           <Text style={styles.paragraph}>
             {t("privacy_contact")}
