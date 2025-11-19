@@ -5,15 +5,44 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
+  Alert,
+  TouchableOpacity,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { Code, Database, FileText, Zap, ChevronRight } from "lucide-react-native";
+import { Code, Database, FileText, Zap, ChevronRight, RefreshCcw } from "lucide-react-native";
 import Colors from "@/constants/colors";
 import { useTranslation } from "@/hooks/useTranslation";
+import { clearUserConsent } from "@/lib/storage/userConsent";
 
 export default function DeveloperIndexScreen() {
   const router = useRouter();
   const { t } = useTranslation();
+
+  const handleResetConsent = async () => {
+    Alert.alert(
+      t('reset_consent_title'),
+      t('reset_consent_message'),
+      [
+        {
+          text: t('cancel'),
+          style: 'cancel' as const,
+        },
+        {
+          text: t('reset'),
+          style: 'destructive' as const,
+          onPress: async () => {
+            try {
+              await clearUserConsent();
+              Alert.alert(t('success'), t('consent_reset_success'));
+            } catch (error) {
+              console.error('[DeveloperOptions] Error resetting consent:', error);
+              Alert.alert(t('error'), t('consent_reset_error'));
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const developerOptions = [
     {
@@ -59,6 +88,23 @@ export default function DeveloperIndexScreen() {
         </View>
 
         <View style={styles.section}>
+          <View style={styles.dangerZone}>
+            <Text style={styles.dangerZoneTitle}>{t('testing_tools')}</Text>
+            <TouchableOpacity
+              style={styles.resetButton}
+              onPress={handleResetConsent}
+            >
+              <View style={styles.resetButtonLeft}>
+                <RefreshCcw size={20} color={Colors.primary.accent} />
+                <View style={styles.resetButtonText}>
+                  <Text style={styles.resetButtonLabel}>{t('reset_consent')}</Text>
+                  <Text style={styles.resetButtonDesc}>{t('reset_consent_desc')}</Text>
+                </View>
+              </View>
+              <ChevronRight size={20} color={Colors.primary.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
           {developerOptions.map((option, index) => {
             const Icon = option.icon;
             return (
@@ -148,6 +194,50 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   optionDescription: {
+    fontSize: 13,
+    color: Colors.primary.textSecondary,
+    lineHeight: 18,
+  },
+  dangerZone: {
+    marginBottom: 24,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.card.border,
+  },
+  dangerZoneTitle: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.primary.textSecondary,
+    marginBottom: 12,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+  },
+  resetButton: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
+    backgroundColor: Colors.secondary.bg,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.card.border,
+  },
+  resetButtonLeft: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    flex: 1,
+    gap: 12,
+  },
+  resetButtonText: {
+    flex: 1,
+  },
+  resetButtonLabel: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: Colors.primary.text,
+    marginBottom: 4,
+  },
+  resetButtonDesc: {
     fontSize: 13,
     color: Colors.primary.textSecondary,
     lineHeight: 18,
