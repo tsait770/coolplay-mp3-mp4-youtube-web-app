@@ -11,8 +11,19 @@ export default function Index() {
   const [error, setError] = useState<string | null>(null);
   const [showConsent, setShowConsent] = useState(false);
   const [isCheckingConsent, setIsCheckingConsent] = useState(true);
+  const [providersReady, setProvidersReady] = useState(false);
 
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setProvidersReady(true);
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!providersReady) return;
+    
     const initApp = async () => {
       try {
         console.log('[Index] Starting app initialization...');
@@ -28,7 +39,7 @@ export default function Index() {
         }
         
         // Give providers time to initialize
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 300));
         
         console.log('[Index] Initialization complete, navigating to home...');
         setIsReady(true);
@@ -51,7 +62,7 @@ export default function Index() {
     };
 
     initApp();
-  }, [router]);
+  }, [router, providersReady]);
 
   const handleConsentAccept = async (permissions: ConsentPermissions) => {
     try {
@@ -88,11 +99,11 @@ export default function Index() {
     setShowConsent(false);
   };
 
-  if (isCheckingConsent) {
+  if (!providersReady || isCheckingConsent) {
     return (
       <View style={styles.container}>
         <ActivityIndicator size="large" color={Colors.primary.accent} />
-        <Text style={styles.loadingText}>Checking permissions...</Text>
+        <Text style={styles.loadingText}>Starting CoolPlay...</Text>
       </View>
     );
   }
@@ -124,15 +135,20 @@ export default function Index() {
 
   return (
     <View style={styles.container}>
-      <FirstTimeConsentModal
-        visible={showConsent}
-        onAccept={handleConsentAccept}
-        onDecline={handleConsentDecline}
-      />
-      <ActivityIndicator size="large" color={Colors.primary.accent} />
-      <Text style={styles.loadingText}>Loading CoolPlay...</Text>
-      {isReady && (
-        <Text style={styles.subText}>Navigating to home...</Text>
+      {showConsent ? (
+        <FirstTimeConsentModal
+          visible={showConsent}
+          onAccept={handleConsentAccept}
+          onDecline={handleConsentDecline}
+        />
+      ) : (
+        <>
+          <ActivityIndicator size="large" color={Colors.primary.accent} />
+          <Text style={styles.loadingText}>Loading CoolPlay...</Text>
+          {isReady && (
+            <Text style={styles.subText}>Navigating to home...</Text>
+          )}
+        </>
       )}
     </View>
   );
