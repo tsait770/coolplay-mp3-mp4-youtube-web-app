@@ -7,13 +7,15 @@ import {
   Pressable,
   Linking,
 } from "react-native";
-import { Info, Globe, Mail, Github, Twitter, ExternalLink } from "lucide-react-native";
+import { Info, Globe, Mail, Github, Twitter, ExternalLink, ChevronRight } from "lucide-react-native";
 import Colors from "@/constants/colors";
 import { useTranslation } from "@/hooks/useTranslation";
 import Constants from "expo-constants";
+import { useRouter } from "expo-router";
 
 export default function AboutScreen() {
   const { t } = useTranslation();
+  const router = useRouter();
 
   const appVersion = Constants.expoConfig?.version || "1.0.0";
   const buildNumber = Constants.expoConfig?.extra?.buildNumber || "1";
@@ -132,26 +134,26 @@ export default function AboutScreen() {
           <Text style={styles.sectionTitle}>{t("legal")}</Text>
           <Pressable
             style={styles.linkCard}
-            onPress={() => openLink("https://coolplay.com/terms")}
+            onPress={() => router.push("/settings/help/terms-of-service" as any)}
           >
             <Text style={styles.linkText}>{t("terms_of_service")}</Text>
-            <ExternalLink size={18} color={Colors.primary.textSecondary} />
+            <ChevronRight size={18} color={Colors.primary.textSecondary} />
           </Pressable>
 
           <Pressable
             style={styles.linkCard}
-            onPress={() => openLink("https://coolplay.com/privacy")}
+            onPress={() => router.push("/settings/help/privacy-policy" as any)}
           >
             <Text style={styles.linkText}>{t("privacy_policy")}</Text>
-            <ExternalLink size={18} color={Colors.primary.textSecondary} />
+            <ChevronRight size={18} color={Colors.primary.textSecondary} />
           </Pressable>
 
           <Pressable
             style={styles.linkCard}
-            onPress={() => openLink("https://coolplay.com/licenses")}
+            onPress={() => router.push("/settings/help/legal-notices" as any)}
           >
-            <Text style={styles.linkText}>{t("open_source_licenses")}</Text>
-            <ExternalLink size={18} color={Colors.primary.textSecondary} />
+            <Text style={styles.linkText}>{t("legal_notices")}</Text>
+            <ChevronRight size={18} color={Colors.primary.textSecondary} />
           </Pressable>
         </View>
 
