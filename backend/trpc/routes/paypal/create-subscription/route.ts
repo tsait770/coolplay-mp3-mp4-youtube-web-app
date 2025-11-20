@@ -78,17 +78,9 @@ export const createSubscriptionProcedure = protectedProcedure
       });
 
       if (!response.ok) {
-        let errorMessage = 'Failed to create subscription';
-        try {
-          const errorData = await response.json();
-          console.error('[createSubscription] PayPal API error:', errorData);
-          errorMessage = errorData.message || errorMessage;
-        } catch {
-          const errorText = await response.text();
-          console.error('[createSubscription] PayPal API error (non-JSON):', errorText);
-          errorMessage = errorText || errorMessage;
-        }
-        throw new Error(errorMessage);
+        const errorData = await response.json();
+        console.error('[createSubscription] PayPal API error:', errorData);
+        throw new Error(errorData.message || 'Failed to create subscription');
       }
 
       const subscription = await response.json();

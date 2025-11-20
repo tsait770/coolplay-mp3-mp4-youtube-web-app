@@ -457,16 +457,6 @@ export default function UniversalVideoPlayer({
 
     let embedUrl = url;
     let injectedJavaScript = '';
-    let urlOrigin = '';
-
-    // Extract origin safely
-    try {
-      const parsedUrl = new URL(url);
-      urlOrigin = parsedUrl.origin;
-    } catch (e) {
-      console.warn('[UniversalVideoPlayer] Could not parse URL origin:', e);
-      urlOrigin = '';
-    }
 
     if (sourceInfo.type === 'vimeo' && sourceInfo.videoId) {
       embedUrl = getVimeoEmbedUrl(sourceInfo.videoId);
@@ -496,30 +486,32 @@ export default function UniversalVideoPlayer({
         ref={webViewRef}
         source={{ 
           uri: embedUrl,
-          headers: sourceInfo.type === 'adult' ? {
-            'User-Agent': Platform.select({
-              ios: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-              android: 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36',
-              default: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-            }),
+          headers: sourceInfo.type === 'youtube' ? {
+            'User-Agent': retryCount >= 3 
+              ? 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
+              : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9,zh-TW;q=0.8,zh;q=0.7',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Referer': 'https://www.youtube.com/',
+            'DNT': '1',
+            'Sec-Fetch-Dest': 'iframe',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'cross-site',
+          } : sourceInfo.type === 'adult' ? {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-            'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7,ja;q=0.6',
-            'Accept-Encoding': 'gzip, deflate, br, zstd',
-            ...(urlOrigin ? { 'Referer': embedUrl, 'Origin': urlOrigin } : {}),
+            'Accept-Language': 'en-US,en;q=0.9,zh-TW;q=0.8,zh;q=0.7,ja;q=0.6',
+            'Accept-Encoding': 'gzip, deflate, br',
             'Cache-Control': 'max-age=0',
             'Sec-Ch-Ua': '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
-            'Sec-Ch-Ua-Mobile': Platform.OS === 'web' ? '?0' : '?1',
-            'Sec-Ch-Ua-Platform': Platform.select({
-              ios: '"iOS"',
-              android: '"Android"',
-              default: '"Windows"',
-            }),
+            'Sec-Ch-Ua-Mobile': '?0',
+            'Sec-Ch-Ua-Platform': '"Windows"',
             'Sec-Fetch-Dest': 'document',
             'Sec-Fetch-Mode': 'navigate',
             'Sec-Fetch-Site': 'none',
             'Sec-Fetch-User': '?1',
             'Upgrade-Insecure-Requests': '1',
-            'DNT': '1',
           } : {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -554,7 +546,7 @@ export default function UniversalVideoPlayer({
         allowUniversalAccessFromFileURLs={true}
         scalesPageToFit={false}
         bounces={true}
-        scrollEnabled={true}
+        scrollEnabled={sourceInfo.type !== 'youtube'}
         automaticallyAdjustContentInsets={false}
         contentInset={{ top: 0, left: 0, bottom: 0, right: 0 }}
         webviewDebuggingEnabled={__DEV__}
