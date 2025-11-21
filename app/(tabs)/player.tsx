@@ -36,10 +36,11 @@ import Colors from "@/constants/colors";
 import DesignTokens from "@/constants/designTokens";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useLanguage } from "@/hooks/useLanguage";
-import { useVoiceControl } from "@/providers/VoiceControlProvider";
+import { useVoiceControlV2 as useVoiceControl } from "@/providers/VoiceControlProviderV2";
 import { useMembership } from "@/providers/MembershipProvider";
 import { VoiceConfirmationOverlay } from "@/components/VoiceConfirmationOverlay";
 import { VoiceFeedbackOverlay } from "@/components/VoiceFeedbackOverlay";
+import { VoiceErrorDisplay } from "@/components/VoiceErrorDisplay";
 
 interface VoiceCommand {
   id: string;
@@ -60,18 +61,30 @@ type VideoSourceType = "supported" | "extended" | "unsupported" | "unknown";
 export default function PlayerScreen() {
   const { t } = useTranslation();
   const { language } = useLanguage();
-  const voiceControl = useVoiceControl();
+  const voiceControlRaw = useVoiceControl();
   const membership = useMembership();
+  
+  // Debug logging
+  useEffect(() => {
+    console.log('[PlayerScreen] Voice control available:', {
+      exists: !!voiceControlRaw,
+      hasStartListening: typeof voiceControlRaw?.startListening,
+      hasStopListening: typeof voiceControlRaw?.stopListening,
+      hasToggleAlwaysListening: typeof voiceControlRaw?.toggleAlwaysListening,
+    });
+  }, [voiceControlRaw]);
+  
+  const voiceControl = voiceControlRaw ?? {};
+  
+  // 安全的語音控制屬性訪問
   const voiceState = voiceControl || { usageCount: 0 };
-  const {
-    isListening: isVoiceListening = false,
-    startListening: startVoiceListening = () => Promise.resolve(),
-    stopListening: stopVoiceListening = () => Promise.resolve(),
-    lastCommand = null,
-    isProcessing: isVoiceProcessing = false,
-    alwaysListening = false,
-    toggleAlwaysListening = () => Promise.resolve()
-  } = voiceControl || {};
+  const isVoiceListening = voiceControl?.isListening ?? false;
+  const startVoiceListening = voiceControl?.startListening ?? (() => Promise.resolve());
+  const stopVoiceListening = voiceControl?.stopListening ?? (() => Promise.resolve());
+  const lastCommand = voiceControl?.lastCommand ?? null;
+  const isVoiceProcessing = voiceControl?.isProcessing ?? false;
+  const alwaysListening = voiceControl?.alwaysListening ?? false;
+  const toggleAlwaysListening = voiceControl?.toggleAlwaysListening ?? (() => Promise.resolve());
   const insets = useSafeAreaInsets();
   const [dimensions, setDimensions] = useState(Dimensions.get('window'));
   const { width: screenWidth, height: screenHeight } = dimensions;
@@ -147,6 +160,7 @@ export default function PlayerScreen() {
   const [showVoiceTutorial, setShowVoiceTutorial] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [pendingCommand, setPendingCommand] = useState<{ command: string; confidence: number } | null>(null);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
 
   const [commandAction, setCommandAction] = useState("");
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -268,15 +282,15 @@ export default function PlayerScreen() {
       try {
         const detail = (e as CustomEvent).detail as { code?: string; message?: string } | undefined;
         const code = detail?.code || 'mic-error';
-        const errorMsg = code === 'mic-denied' 
+        const errorMsg = code === 'not-allowed' 
           ? t('microphone_permission_denied')
           : detail?.message || t('voice_error_generic');
-        setVoiceStatus(errorMsg);
+        setVoiceError(errorMsg);
         setIsVoiceActive(false);
-        if (code === 'mic-denied' && alwaysListening) {
+        if (code === 'not-allowed' && alwaysListening) {
           toggleAlwaysListening();
         }
-        setTimeout(() => setVoiceStatus(''), 5000);
+        setTimeout(() => setVoiceError(null), 8000);
       } catch {}
     };
 
@@ -1529,10 +1543,23 @@ export default function PlayerScreen() {
           />
         )}
 
-        {(voiceStatus && typeof voiceStatus === 'string') && (
-          <View style={styles.floatingStatusBar}>
+        {/* Voice error display */}
+        <VoiceErrorDisplay
+          error={voiceError}
+          onDismiss={() => setVoiceError(null)}
+          onRetry={async () => {
+            setVoiceError(null);
+            if (toggleAlwaysListening && typeof toggleAlwaysListening === 'function') {
+              await toggleAlwaysListening();
+            }
+          }}
+        />
+        
+        {/* Status message display (success, info) */}
+        {(voiceStatus && typeof voiceStatus === 'string' && voiceStatus.trim().length > 0 && !voiceError) && (
+          <View style={[styles.floatingStatusBar, videoSource && videoSource.uri ? styles.floatingStatusBarVideo : null]}>
             <View style={styles.statusDot} />
-            <Text style={styles.statusText}>{voiceStatus}</Text>
+            <Text style={styles.statusText} numberOfLines={2}>{voiceStatus}</Text>
           </View>
         )}
 
@@ -1541,7 +1568,7 @@ export default function PlayerScreen() {
           isProcessing={isVoiceProcessing}
           lastCommand={lastCommand}
           lastIntent={null}
-          confidence={0.8}
+          confidence={voiceControl?.confidence || 0}
         />
 
         <VoiceConfirmationOverlay
@@ -2792,11 +2819,19 @@ const createStyles = () => {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 12,
     borderRadius: 20,
     zIndex: 999,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  floatingStatusBarVideo: {
+    top: 80,
   },
   voiceControlCenter: {
     alignItems: "center",

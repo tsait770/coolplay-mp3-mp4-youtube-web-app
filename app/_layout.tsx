@@ -14,8 +14,7 @@ import { CategoryProvider } from "@/providers/CategoryProvider";
 import { ReferralProvider, useReferral } from "@/providers/ReferralProvider";
 import { AuthProvider } from "@/providers/AuthProvider";
 import { StripeProvider } from "@/providers/StripeProvider";
-import { VoiceControlProvider, useVoiceControl } from "@/providers/VoiceControlProvider";
-import { VoiceControlProviderV2 } from "@/providers/VoiceControlProviderV2";
+import { VoiceControlProviderV2 as VoiceControlProvider, useVoiceControlV2 as useVoiceControl } from "@/providers/VoiceControlProviderV2";
 import { SiriIntegrationProvider, useSiriIntegration } from "@/providers/SiriIntegrationProvider";
 import { StorageProvider, useStorage } from "@/providers/StorageProvider";
 import ReferralCodeModal from "@/components/ReferralCodeModal";
@@ -441,15 +440,13 @@ export default function RootLayout() {
                               <BookmarkProvider>
                                 <ReferralProvider>
                                   <SoundProvider>
-                                    <VoiceControlProviderV2>
-                                      <VoiceControlProvider>
-                                        <SiriIntegrationProvider>
-                                          <GestureHandlerRootView style={styles.container}>
-                                            <RootLayoutNav />
-                                          </GestureHandlerRootView>
-                                        </SiriIntegrationProvider>
-                                      </VoiceControlProvider>
-                                    </VoiceControlProviderV2>
+                                    <VoiceControlProvider>
+                                      <SiriIntegrationProvider>
+                                        <GestureHandlerRootView style={styles.container}>
+                                          <RootLayoutNav />
+                                        </GestureHandlerRootView>
+                                      </SiriIntegrationProvider>
+                                    </VoiceControlProvider>
                                   </SoundProvider>
                                 </ReferralProvider>
                               </BookmarkProvider>
