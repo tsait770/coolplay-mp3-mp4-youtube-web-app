@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Platform, Modal } from 'react-native';
 import { Mic, MicOff } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useVoiceControlV2 } from '@/providers/VoiceControlProviderV2';
+import { useVoiceControl } from '@/providers/VoiceControlProvider';
 import { VoiceFeedbackOverlay } from './VoiceFeedbackOverlay';
 
 export const VoiceControlWidget: React.FC = () => {
   const insets = useSafeAreaInsets();
-  const voiceControl = useVoiceControlV2();
+  const voiceControl = useVoiceControl();
   const [scaleAnim] = useState(new Animated.Value(1));
   const [showInfo, setShowInfo] = useState(false);
 
@@ -79,7 +79,7 @@ export const VoiceControlWidget: React.FC = () => {
         isListening={voiceControl.isListening}
         isProcessing={voiceControl.isProcessing}
         lastCommand={voiceControl.lastCommand}
-        lastIntent={voiceControl.lastIntent}
+        lastIntent={null}
         confidence={voiceControl.confidence}
       />
 

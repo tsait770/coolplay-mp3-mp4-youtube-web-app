@@ -1541,7 +1541,7 @@ export default function PlayerScreen() {
           isProcessing={isVoiceProcessing}
           lastCommand={lastCommand}
           lastIntent={null}
-          confidence={0.8}
+          confidence={voiceControl?.confidence || 0}
         />
 
         <VoiceConfirmationOverlay
