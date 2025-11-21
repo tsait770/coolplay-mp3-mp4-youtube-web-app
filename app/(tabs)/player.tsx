@@ -38,6 +38,8 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { useLanguage } from "@/hooks/useLanguage";
 import { useVoiceControl } from "@/providers/VoiceControlProvider";
 import { useMembership } from "@/providers/MembershipProvider";
+import { VoiceConfirmationOverlay } from "@/components/VoiceConfirmationOverlay";
+import { VoiceFeedbackOverlay } from "@/components/VoiceFeedbackOverlay";
 
 interface VoiceCommand {
   id: string;
@@ -142,6 +144,9 @@ export default function PlayerScreen() {
   const [commandName, setCommandName] = useState("");
   const [showUrlModal, setShowUrlModal] = useState(false);
   const [isContentLoaded, setIsContentLoaded] = useState(false);
+  const [showVoiceTutorial, setShowVoiceTutorial] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [pendingCommand, setPendingCommand] = useState<{ command: string; confidence: number } | null>(null);
 
   const [commandAction, setCommandAction] = useState("");
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -257,40 +262,50 @@ export default function PlayerScreen() {
     }
   }, [isVoiceActive, isVoiceListening, alwaysListening, pulseAnim]);
 
-  // Listen for mic/voice permission errors
+  // Listen for mic/voice permission errors and voice events
   useEffect(() => {
-    const handler = (e: Event) => {
+    const errorHandler = (e: Event) => {
       try {
         const detail = (e as CustomEvent).detail as { code?: string; message?: string } | undefined;
         const code = detail?.code || 'mic-error';
-        if (code === 'mic-denied') {
-          const errorMsg = t('microphone_permission_denied');
-          Alert.alert(
-            t('error'),
-            errorMsg !== 'microphone_permission_denied' && errorMsg
-              ? errorMsg
-              : 'Microphone permission denied. Please enable microphone access in your device settings.',
-          );
-        } else {
-          Alert.alert(
-            t('error'),
-            detail?.message || 'Microphone access error. Please check permissions and try again.'
-          );
-        }
-        setVoiceStatus('');
+        const errorMsg = code === 'mic-denied' 
+          ? t('microphone_permission_denied')
+          : detail?.message || t('voice_error_generic');
+        setVoiceStatus(errorMsg);
         setIsVoiceActive(false);
-        // Also turn off always listening if permission denied
         if (code === 'mic-denied' && alwaysListening) {
           toggleAlwaysListening();
         }
+        setTimeout(() => setVoiceStatus(''), 5000);
       } catch {}
     };
-    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
-      window.addEventListener('voiceError', handler as EventListener);
+
+    const confirmationHandler = (e: Event) => {
+      try {
+        const detail = (e as CustomEvent).detail as { text: string; parsedCommand: any };
+        setPendingCommand({ command: detail.text, confidence: detail.parsedCommand?.confidence || 0.7 });
+        setShowConfirmation(true);
+      } catch {}
+    };
+
+    const retryHandler = (e: Event) => {
+      try {
+        const detail = (e as CustomEvent).detail as { text: string };
+        setVoiceStatus(t('voice_low_confidence_retry'));
+        setTimeout(() => setVoiceStatus(''), 3000);
+      } catch {}
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('voiceError', errorHandler as EventListener);
+      window.addEventListener('voiceConfirmationRequested', confirmationHandler as EventListener);
+      window.addEventListener('voiceRetryRequested', retryHandler as EventListener);
     }
     return () => {
-      if (typeof window !== 'undefined' && typeof window.removeEventListener === 'function') {
-        window.removeEventListener('voiceError', handler as EventListener);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('voiceError', errorHandler as EventListener);
+        window.removeEventListener('voiceConfirmationRequested', confirmationHandler as EventListener);
+        window.removeEventListener('voiceRetryRequested', retryHandler as EventListener);
       }
     };
   }, [t, alwaysListening, toggleAlwaysListening]);
@@ -1128,11 +1143,21 @@ export default function PlayerScreen() {
           >
             <View style={styles.card1Container}>
               <View style={styles.voiceControlHeaderNonVideo}>
-                <View style={styles.micIconCircleNonVideo}>
+                <TouchableOpacity 
+                  style={styles.micIconCircleNonVideo}
+                  onPress={() => setShowVoiceTutorial(true)}
+                  activeOpacity={0.8}
+                >
                   <Mic testID="voice-header-mic" size={getResponsiveSize(32, 40, 48)} color={Colors.accent.primary} />
-                </View>
+                </TouchableOpacity>
                 <Text style={styles.voiceControlHeaderTitleNonVideo}>{t('voice_control')}</Text>
                 <Text style={styles.voiceControlHeaderSubtitleNonVideo}>{t('voice_control_instruction')}</Text>
+                <TouchableOpacity 
+                  style={styles.tutorialButton}
+                  onPress={() => setShowVoiceTutorial(true)}
+                >
+                  <Text style={styles.tutorialButtonText}>{t('first_time_tutorial')}</Text>
+                </TouchableOpacity>
               </View>
 
               <View style={styles.videoSelectionCard}>
@@ -1504,12 +1529,37 @@ export default function PlayerScreen() {
           />
         )}
 
-        {voiceStatus && typeof voiceStatus === 'string' && videoSource && videoSource.uri && videoSource.uri.trim() !== '' && (
+        {(voiceStatus && typeof voiceStatus === 'string') && (
           <View style={styles.floatingStatusBar}>
             <View style={styles.statusDot} />
             <Text style={styles.statusText}>{voiceStatus}</Text>
           </View>
         )}
+
+        <VoiceFeedbackOverlay
+          isListening={isVoiceListening || alwaysListening}
+          isProcessing={isVoiceProcessing}
+          lastCommand={lastCommand}
+          lastIntent={null}
+          confidence={0.8}
+        />
+
+        <VoiceConfirmationOverlay
+          visible={showConfirmation}
+          command={pendingCommand?.command || ''}
+          confidence={pendingCommand?.confidence || 0}
+          onConfirm={() => {
+            setShowConfirmation(false);
+            if (pendingCommand?.command) {
+              executeVoiceCommand(pendingCommand.command);
+            }
+            setPendingCommand(null);
+          }}
+          onCancel={() => {
+            setShowConfirmation(false);
+            setPendingCommand(null);
+          }}
+        />
 
         <Modal
           visible={showSiriSetup}
@@ -1668,6 +1718,73 @@ export default function PlayerScreen() {
                 </TouchableOpacity>
               </View>
             </View>
+          </View>
+        </Modal>
+
+        <Modal
+          visible={showVoiceTutorial}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => setShowVoiceTutorial(false)}
+        >
+          <View style={styles.tutorialModal}>
+            <View style={styles.tutorialHeader}>
+              <Text style={styles.tutorialTitle}>{t('voice_control_tutorial')}</Text>
+              <TouchableOpacity
+                onPress={() => setShowVoiceTutorial(false)}
+                style={styles.closeButton}
+              >
+                <X size={24} color={Colors.primary.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.tutorialContent} showsVerticalScrollIndicator={false}>
+              <View style={styles.tutorialStep}>
+                <View style={styles.tutorialStepNumber}>
+                  <Text style={styles.tutorialStepNumberText}>1</Text>
+                </View>
+                <View style={styles.tutorialStepContent}>
+                  <Text style={styles.tutorialStepTitle}>{t('tutorial_step_1_title')}</Text>
+                  <Text style={styles.tutorialStepDescription}>{t('tutorial_step_1_description')}</Text>
+                </View>
+              </View>
+
+              <View style={styles.tutorialStep}>
+                <View style={styles.tutorialStepNumber}>
+                  <Text style={styles.tutorialStepNumberText}>2</Text>
+                </View>
+                <View style={styles.tutorialStepContent}>
+                  <Text style={styles.tutorialStepTitle}>{t('tutorial_step_2_title')}</Text>
+                  <Text style={styles.tutorialStepDescription}>{t('tutorial_step_2_description')}</Text>
+                </View>
+              </View>
+
+              <View style={styles.tutorialStep}>
+                <View style={styles.tutorialStepNumber}>
+                  <Text style={styles.tutorialStepNumberText}>3</Text>
+                </View>
+                <View style={styles.tutorialStepContent}>
+                  <Text style={styles.tutorialStepTitle}>{t('tutorial_step_3_title')}</Text>
+                  <Text style={styles.tutorialStepDescription}>{t('tutorial_step_3_description')}</Text>
+                </View>
+              </View>
+
+              <View style={styles.tutorialTip}>
+                <Text style={styles.tutorialTipTitle}>{t('tutorial_tip_title')}</Text>
+                <Text style={styles.tutorialTipText}>{t('tutorial_tip_text')}</Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.tutorialStartButton}
+                onPress={() => {
+                  setShowVoiceTutorial(false);
+                  toggleAlwaysListening();
+                }}
+              >
+                <Mic size={20} color="white" />
+                <Text style={styles.tutorialStartButtonText}>{t('start_voice_control')}</Text>
+              </TouchableOpacity>
+            </ScrollView>
           </View>
         </Modal>
 
@@ -3696,8 +3813,109 @@ const createStyles = () => {
     lineHeight: getResponsiveFontSize(24),
     color: Colors.primary.textSecondary,
     textAlign: 'center' as const,
-    marginBottom: 0,
+    marginBottom: getResponsivePadding(DesignTokens.spacing.md),
     paddingHorizontal: getResponsivePadding(16),
+  },
+  tutorialButton: {
+    backgroundColor: Colors.accent.primary + '15',
+    paddingHorizontal: getResponsivePadding(DesignTokens.spacing.lg),
+    paddingVertical: getResponsivePadding(DesignTokens.spacing.sm),
+    borderRadius: DesignTokens.borderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.accent.primary + '30',
+  },
+  tutorialButtonText: {
+    fontSize: getResponsiveFontSize(15),
+    fontWeight: '600' as const,
+    color: Colors.accent.primary,
+  },
+  tutorialModal: {
+    flex: 1,
+    backgroundColor: Colors.primary.bg,
+  },
+  tutorialHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.card.border,
+    backgroundColor: Colors.secondary.bg,
+  },
+  tutorialTitle: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+    color: Colors.primary.text,
+  },
+  tutorialContent: {
+    flex: 1,
+    padding: 20,
+  },
+  tutorialStep: {
+    flexDirection: 'row',
+    marginBottom: DesignTokens.spacing.xl,
+    gap: DesignTokens.spacing.md,
+  },
+  tutorialStepNumber: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.accent.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tutorialStepNumberText: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: 'white',
+  },
+  tutorialStepContent: {
+    flex: 1,
+  },
+  tutorialStepTitle: {
+    fontSize: 18,
+    fontWeight: '600' as const,
+    color: Colors.primary.text,
+    marginBottom: DesignTokens.spacing.xs,
+  },
+  tutorialStepDescription: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: Colors.primary.textSecondary,
+  },
+  tutorialTip: {
+    backgroundColor: Colors.accent.primary + '10',
+    borderRadius: DesignTokens.borderRadius.lg,
+    padding: DesignTokens.spacing.lg,
+    marginBottom: DesignTokens.spacing.xl,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.accent.primary,
+  },
+  tutorialTipTitle: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    color: Colors.accent.primary,
+    marginBottom: DesignTokens.spacing.xs,
+  },
+  tutorialTipText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: Colors.primary.text,
+  },
+  tutorialStartButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: DesignTokens.spacing.sm,
+    backgroundColor: Colors.accent.primary,
+    paddingVertical: DesignTokens.spacing.lg,
+    borderRadius: DesignTokens.borderRadius.lg,
+    ...DesignTokens.shadows.md,
+  },
+  tutorialStartButtonText: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: 'white',
   },
 
   });
