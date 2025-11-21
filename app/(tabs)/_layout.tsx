@@ -25,6 +25,12 @@ export default function TabLayout() {
       ),
     },
     player: {
+      title: "Player",
+      tabBarIcon: ({ color }: { color: string }) => (
+        <Ionicons name="play-circle-outline" size={24} color={color} />
+      ),
+    },
+    voice: {
       title: t("voice_control"),
       tabBarIcon: ({ color }: { color: string }) => (
         <Ionicons name="mic-outline" size={24} color={color} />
@@ -116,6 +122,15 @@ export default function TabLayout() {
         listeners={{
           tabPress: () => {
             console.log('[Tabs] tabPress: community', Date.now());
+          },
+        } as any}
+      />
+      <Tabs.Screen
+        name="voice"
+        options={tabOptions.voice}
+        listeners={{
+          tabPress: () => {
+            console.log('[Tabs] tabPress: voice', Date.now());
           },
         } as any}
       />

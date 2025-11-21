@@ -9,59 +9,127 @@ import { VoiceListeningIndicator } from '@/components/VoiceListeningIndicator';
 
 export function VoiceControlPanel() {
   const { t } = useTranslation();
-  const voiceControl = useVoiceControlV2();
-  const { quota, loading: quotaLoading } = useVoiceQuota();
-  const { settings, loading: settingsLoading, updateSettings } = useVoiceSettings();
   const [showFeedback, setShowFeedback] = useState(false);
+  
+  // Always call hooks - never conditional
+  const voiceControl = useVoiceControlV2();
+  const quotaResult = useVoiceQuota();
+  const settingsResult = useVoiceSettings();
+  
+  const quota = quotaResult?.quota || { 
+    canUseVoice: false, 
+    hasUnlimitedAccess: false, 
+    dailyUsed: 0, 
+    dailyLimit: 50, 
+    dailyRemaining: 50, 
+    monthlyUsed: 0, 
+    monthlyLimit: 1000, 
+    monthlyRemaining: 1000 
+  };
+  
+  const quotaLoading = quotaResult?.loading || false;
+  const settings = settingsResult?.settings || null;
+  const settingsLoading = settingsResult?.loading || false;
+  const updateSettings = settingsResult?.updateSettings || (() => Promise.resolve(false));
 
   useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    
     const handleSuccess = () => setShowFeedback(true);
     const handleFailed = () => setShowFeedback(true);
 
-    if (typeof window !== 'undefined') {
-      window.addEventListener('voiceCommandSuccess', handleSuccess);
-      window.addEventListener('voiceCommandFailed', handleFailed);
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+      try {
+        window.addEventListener('voiceCommandSuccess', handleSuccess);
+        window.addEventListener('voiceCommandFailed', handleFailed);
 
-      return () => {
-        window.removeEventListener('voiceCommandSuccess', handleSuccess);
-        window.removeEventListener('voiceCommandFailed', handleFailed);
-      };
+        return () => {
+          if (typeof window.removeEventListener === 'function') {
+            window.removeEventListener('voiceCommandSuccess', handleSuccess);
+            window.removeEventListener('voiceCommandFailed', handleFailed);
+          }
+        };
+      } catch (error) {
+        console.error('[VoiceControlPanel] Event listener error:', error);
+      }
     }
   }, []);
 
   useEffect(() => {
-    if (voiceControl.isProcessing) {
+    if (voiceControl?.isProcessing) {
       setShowFeedback(true);
     }
-  }, [voiceControl.isProcessing]);
+  }, [voiceControl?.isProcessing]);
 
   const handleToggleListening = async () => {
-    if (voiceControl.isListening) {
-      await voiceControl.stopListening();
-    } else {
-      if (!quota.canUseVoice && !quota.hasUnlimitedAccess) {
-        alert(t('voiceControl.quotaExceeded'));
-        return;
+    if (!voiceControl) {
+      console.error('[VoiceControlPanel] Voice control not available');
+      alert(t('voiceControl.notAvailable') || 'Voice control not available');
+      return;
+    }
+    
+    try {
+      if (voiceControl.isListening) {
+        if (typeof voiceControl.stopListening === 'function') {
+          await voiceControl.stopListening();
+        }
+      } else {
+        if (!quota.canUseVoice && !quota.hasUnlimitedAccess) {
+          alert(t('voiceControl.quotaExceeded') || 'Voice quota exceeded');
+          return;
+        }
+        if (typeof voiceControl.startListening === 'function') {
+          await voiceControl.startListening();
+        }
       }
-      await voiceControl.startListening();
+    } catch (error) {
+      console.error('[VoiceControlPanel] Toggle listening error:', error);
+      alert(error instanceof Error ? error.message : 'Failed to toggle voice control');
     }
   };
 
   const handleToggleAlwaysListening = async () => {
-    if (!voiceControl.alwaysListening && !quota.canUseVoice && !quota.hasUnlimitedAccess) {
-      alert(t('voiceControl.quotaExceeded'));
+    if (!voiceControl) {
+      console.error('[VoiceControlPanel] Voice control not available');
+      alert(t('voiceControl.notAvailable') || 'Voice control not available');
       return;
     }
-    await voiceControl.toggleAlwaysListening();
-    if (settings) {
-      await updateSettings({ alwaysListening: !voiceControl.alwaysListening });
+    
+    try {
+      if (!voiceControl.alwaysListening && !quota.canUseVoice && !quota.hasUnlimitedAccess) {
+        alert(t('voiceControl.quotaExceeded') || 'Voice quota exceeded');
+        return;
+      }
+      if (typeof voiceControl.toggleAlwaysListening === 'function') {
+        await voiceControl.toggleAlwaysListening();
+      }
+      if (settings && typeof updateSettings === 'function') {
+        await updateSettings({ alwaysListening: !voiceControl.alwaysListening });
+      }
+    } catch (error) {
+      console.error('[VoiceControlPanel] Toggle always listening error:', error);
+      alert(error instanceof Error ? error.message : 'Failed to toggle always listening');
     }
   };
+
+  // Show error if voice control is not available
+  if (!voiceControl) {
+    return (
+      <View style={styles.errorContainer}>
+        <View style={styles.errorIcon}>
+          <Mic size={48} color="#EF4444" />
+        </View>
+        <Text style={styles.errorTitle}>{t('voiceControl.notAvailable') || 'Voice Control Unavailable'}</Text>
+        <Text style={styles.errorMessage}>{t('voiceControl.notAvailableMessage') || 'Voice control is not available on this device or browser.'}</Text>
+      </View>
+    );
+  }
 
   if (quotaLoading || settingsLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#3B82F6" />
+        <Text style={styles.loadingText}>{t('loading') || 'Loading...'}</Text>
       </View>
     );
   }
@@ -76,34 +144,34 @@ export function VoiceControlPanel() {
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <VoiceFeedback
         visible={showFeedback}
-        command={voiceControl.lastCommand}
-        intent={voiceControl.lastIntent}
-        confidence={voiceControl.confidence}
-        isProcessing={voiceControl.isProcessing}
+        command={voiceControl.lastCommand || null}
+        intent={voiceControl.lastIntent || null}
+        confidence={voiceControl.confidence || 0}
+        isProcessing={voiceControl.isProcessing || false}
       />
 
       <View style={styles.header}>
         <View style={styles.headerIcon}>
           <Mic size={28} color="#3B82F6" />
         </View>
-        <Text style={styles.title}>{t('voiceControl.title')}</Text>
+        <Text style={styles.title}>{t('voiceControl.title') || 'Voice Control'}</Text>
       </View>
 
       <View style={styles.indicatorContainer}>
         <VoiceListeningIndicator
-          isListening={voiceControl.isListening}
-          alwaysListening={voiceControl.alwaysListening}
+          isListening={voiceControl.isListening || false}
+          alwaysListening={voiceControl.alwaysListening || false}
           onPress={handleToggleListening}
         />
         <View style={styles.statusTextContainer}>
           <Text style={styles.statusText}>
             {voiceControl.isListening
-              ? t('voiceFeedback.listening')
-              : t('voiceControl.startListening')}
+              ? t('voiceFeedback.listening') || 'Listening...'
+              : t('voiceControl.startListening') || 'Tap to start'}
           </Text>
           {voiceControl.lastCommand && (
             <Text style={styles.lastCommandText}>
-              {t('voiceControl.lastCommand')}: {voiceControl.lastCommand}
+              {t('voiceControl.lastCommand') || 'Last command'}: {voiceControl.lastCommand}
             </Text>
           )}
         </View>
@@ -112,7 +180,7 @@ export function VoiceControlPanel() {
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <TrendingUp size={20} color="#3B82F6" />
-          <Text style={styles.cardTitle}>{t('voiceControl.usageStats')}</Text>
+          <Text style={styles.cardTitle}>{t('voiceControl.usageStats') || 'Usage Statistics'}</Text>
         </View>
         
         <View style={styles.quotaBar}>
@@ -120,27 +188,27 @@ export function VoiceControlPanel() {
         </View>
 
         {quota.hasUnlimitedAccess ? (
-          <Text style={styles.unlimitedText}>{t('voiceControl.unlimited')}</Text>
+          <Text style={styles.unlimitedText}>{t('voiceControl.unlimited') || 'Unlimited'}</Text>
         ) : (
           <View style={styles.statsGrid}>
             <View style={styles.statItem}>
-              <Text style={styles.statLabel}>{t('voiceControl.dailyUsed')}</Text>
+              <Text style={styles.statLabel}>{t('voiceControl.dailyUsed') || 'Daily Used'}</Text>
               <Text style={styles.statValue}>
                 {quota.dailyUsed} / {quota.dailyLimit}
               </Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statLabel}>{t('voiceControl.dailyRemaining')}</Text>
+              <Text style={styles.statLabel}>{t('voiceControl.dailyRemaining') || 'Daily Remaining'}</Text>
               <Text style={styles.statValue}>{quota.dailyRemaining}</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statLabel}>{t('voiceControl.monthlyUsed')}</Text>
+              <Text style={styles.statLabel}>{t('voiceControl.monthlyUsed') || 'Monthly Used'}</Text>
               <Text style={styles.statValue}>
                 {quota.monthlyUsed} / {quota.monthlyLimit}
               </Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statLabel}>{t('voiceControl.monthlyRemaining')}</Text>
+              <Text style={styles.statLabel}>{t('voiceControl.monthlyRemaining') || 'Monthly Remaining'}</Text>
               <Text style={styles.statValue}>{quota.monthlyRemaining}</Text>
             </View>
           </View>
@@ -150,16 +218,16 @@ export function VoiceControlPanel() {
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <Shield size={20} color="#3B82F6" />
-          <Text style={styles.cardTitle}>{t('voiceControl.settings')}</Text>
+          <Text style={styles.cardTitle}>{t('voiceControl.settings') || 'Settings'}</Text>
         </View>
 
         <View style={styles.settingRow}>
           <View style={styles.settingInfo}>
-            <Text style={styles.settingLabel}>{t('voiceControl.alwaysListening')}</Text>
-            <Text style={styles.settingDesc}>{t('voiceControl.alwaysListeningDesc')}</Text>
+            <Text style={styles.settingLabel}>{t('voiceControl.alwaysListening') || 'Always Listening'}</Text>
+            <Text style={styles.settingDesc}>{t('voiceControl.alwaysListeningDesc') || 'Keep voice control active'}</Text>
           </View>
           <Switch
-            value={voiceControl.alwaysListening}
+            value={voiceControl.alwaysListening || false}
             onValueChange={handleToggleAlwaysListening}
             trackColor={{ false: '#D1D5DB', true: '#60A5FA' }}
             thumbColor={voiceControl.alwaysListening ? '#3B82F6' : '#F3F4F6'}
@@ -170,7 +238,7 @@ export function VoiceControlPanel() {
           <>
             <View style={styles.settingRow}>
               <View style={styles.settingInfo}>
-                <Text style={styles.settingLabel}>{t('voiceControl.visualFeedback')}</Text>
+                <Text style={styles.settingLabel}>{t('voiceControl.visualFeedback') || 'Visual Feedback'}</Text>
               </View>
               <Switch
                 value={settings.enableVisualFeedback}
@@ -184,7 +252,7 @@ export function VoiceControlPanel() {
 
             <View style={styles.settingRow}>
               <View style={styles.settingInfo}>
-                <Text style={styles.settingLabel}>{t('voiceControl.hapticFeedback')}</Text>
+                <Text style={styles.settingLabel}>{t('voiceControl.hapticFeedback') || 'Haptic Feedback'}</Text>
               </View>
               <Switch
                 value={settings.enableHapticFeedback}
@@ -210,18 +278,14 @@ export function VoiceControlPanel() {
           disabled={!quota.canUseVoice && !quota.hasUnlimitedAccess}
         >
           {voiceControl.isListening ? (
-            <View>
-              <MicOff size={24} color="#FFFFFF" />
-            </View>
+            <MicOff size={24} color="#FFFFFF" />
           ) : (
-            <View>
-              <Mic size={24} color="#FFFFFF" />
-            </View>
+            <Mic size={24} color="#FFFFFF" />
           )}
           <Text style={styles.buttonText}>
             {voiceControl.isListening
-              ? t('voiceControl.stopListening')
-              : t('voiceControl.startListening')}
+              ? t('voiceControl.stopListening') || 'Stop Listening'
+              : t('voiceControl.startListening') || 'Start Listening'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -242,6 +306,41 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    padding: 32,
+  },
+  errorIcon: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: '#FEE2E2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  errorTitle: {
+    fontSize: 24,
+    fontWeight: '700' as const,
+    color: '#111827',
+    marginBottom: 12,
+    textAlign: 'center' as const,
+  },
+  errorMessage: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center' as const,
+    lineHeight: 24,
   },
   header: {
     flexDirection: 'row',
@@ -259,7 +358,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: '700',
+    fontWeight: '700' as const,
     color: '#111827',
   },
   indicatorContainer: {
@@ -287,7 +386,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '600' as const,
     color: '#111827',
     marginBottom: 4,
   },
@@ -319,7 +418,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '600' as const,
     color: '#111827',
     marginLeft: 8,
   },
@@ -337,9 +436,9 @@ const styles = StyleSheet.create({
   },
   unlimitedText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '600' as const,
     color: '#10B981',
-    textAlign: 'center',
+    textAlign: 'center' as const,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -358,7 +457,7 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '700' as const,
     color: '#111827',
   },
   settingRow: {
@@ -375,7 +474,7 @@ const styles = StyleSheet.create({
   },
   settingLabel: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '600' as const,
     color: '#111827',
     marginBottom: 2,
   },
@@ -406,7 +505,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '600' as const,
     color: '#FFFFFF',
     marginLeft: 8,
   },
