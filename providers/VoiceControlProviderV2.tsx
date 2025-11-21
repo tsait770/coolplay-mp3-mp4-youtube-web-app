@@ -245,13 +245,24 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
       console.log('[VoiceControlV2] Starting listening...');
 
       if (!asrAdapter.current) {
-        asrAdapter.current = createASRAdapter({
-          language: getLanguageCode(language),
-          continuous: state.alwaysListening,
-          interimResults: true,
-          maxAlternatives: 3,
-          enableLocalProcessing: true,
-        });
+        try {
+          asrAdapter.current = createASRAdapter({
+            language: getLanguageCode(language),
+            continuous: state.alwaysListening,
+            interimResults: true,
+            maxAlternatives: 3,
+            enableLocalProcessing: true,
+          });
+        } catch (adapterError) {
+          console.error('[VoiceControlV2] Failed to create ASR adapter:', adapterError);
+          throw new Error('Speech recognition is not available on this device');
+        }
+
+        // Check if adapter is available
+        if (!asrAdapter.current.isAvailable()) {
+          console.warn('[VoiceControlV2] ASR adapter is not available');
+          // Still set up event listeners, but it will emit an error when started
+        }
 
         asrAdapter.current.on('result', (event: ASREvent) => {
           if (event.data) {
@@ -294,6 +305,16 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
     } catch (error) {
       console.error('[VoiceControlV2] Failed to start listening:', error);
       setState(prev => ({ ...prev, isListening: false }));
+      
+      // Emit error event for UI to handle
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('voiceError', {
+          detail: {
+            code: 'not-allowed',
+            message: error instanceof Error ? error.message : 'Failed to start speech recognition',
+          },
+        }));
+      }
     }
   }, [state.isListening, state.alwaysListening, language, handleASRResult, handleASRError, handleASREnd]);
 

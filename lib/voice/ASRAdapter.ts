@@ -481,6 +481,27 @@ export class MediaRecorderASRAdapter extends ASRAdapter {
   }
 }
 
+export class NoOpASRAdapter extends ASRAdapter {
+  isAvailable(): boolean {
+    return false;
+  }
+
+  async start(): Promise<void> {
+    console.warn('[NoOpASRAdapter] ASR not available on this platform');
+    this.emit({
+      type: 'error',
+      data: {
+        code: 'not-allowed',
+        message: 'Speech recognition is not available on this platform',
+      },
+    });
+  }
+
+  async stop(): Promise<void> {
+    // No-op
+  }
+}
+
 export function createASRAdapter(options: Partial<ASRAdapterOptions> = {}): ASRAdapter {
   if (Platform.OS === 'web') {
     const webSpeech = new WebSpeechASRAdapter(options);
@@ -495,12 +516,11 @@ export function createASRAdapter(options: Partial<ASRAdapterOptions> = {}): ASRA
       return mediaRecorder;
     }
   } else {
-    const mediaRecorder = new MediaRecorderASRAdapter(options);
-    if (mediaRecorder.isAvailable()) {
-      console.log('[ASRAdapter] Using MediaRecorder for mobile');
-      return mediaRecorder;
-    }
+    // For mobile platforms, MediaRecorder is not available
+    // We need expo-av or native speech recognition
+    console.warn('[ASRAdapter] No native ASR adapter available for mobile');
   }
 
-  throw new Error('No ASR adapter available for this platform');
+  console.warn('[ASRAdapter] No ASR adapter available, using no-op adapter');
+  return new NoOpASRAdapter(options);
 }
