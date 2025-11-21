@@ -2,7 +2,7 @@
  * Supabase 全自動偵測腳本
  * - 檢查環境變數
  * - 連線測試
- * - 表存在性與可讀性（profiles, folders, bookmarks, device_verifications, voice_usage_logs, voice_control_settings, voice_quota_usage）
+ * - 表存在性與可讀性（profiles, folders, bookmarks, device_verifications, voice_usage_logs, voice_control_settings, voice_quota_usage, voice_usage_settings, voice_consent_settings）
  * - 函式存在性（get_voice_quota_usage, increment_voice_quota, create_default_voice_settings）
  * - 基本 RLS 行為（匿名新增應失敗、匿名查詢有限）
  * 產出：終端摘要 + Markdown 報告 + JSON 報告
@@ -131,6 +131,8 @@ async function main() {
     'voice_usage_logs',
     'voice_control_settings',
     'voice_quota_usage',
+    'voice_usage_settings',
+    'voice_consent_settings',
   ];
 
   for (const t of tables) {
@@ -143,6 +145,19 @@ async function main() {
   report.functions.push(await functionExists(client, 'create_default_voice_settings', { user_id: '00000000-0000-0000-0000-000000000000' }));
 
   report.rls.push(...(await checkRLS(client)));
+  // Additional RLS behavior: anonymous inserts on settings should fail
+  try {
+    const { error } = await client.from('voice_usage_settings').insert({ user_id: '00000000-0000-0000-0000-000000000000' } as any);
+    report.rls.push({ name: 'rls:voice_usage_settings:insert_blocked', success: !!error, detail: error ? error.message : 'insert unexpectedly succeeded' });
+  } catch (e: any) {
+    report.rls.push({ name: 'rls:voice_usage_settings:insert_blocked', success: true, detail: e?.message });
+  }
+  try {
+    const { error } = await client.from('voice_consent_settings').insert({ user_id: '00000000-0000-0000-0000-000000000000' } as any);
+    report.rls.push({ name: 'rls:voice_consent_settings:insert_blocked', success: !!error, detail: error ? error.message : 'insert unexpectedly succeeded' });
+  } catch (e: any) {
+    report.rls.push({ name: 'rls:voice_consent_settings:insert_blocked', success: true, detail: e?.message });
+  }
 
   // Console summary
   const ok = (arr: CheckResult[]) => arr.every(r => r.success);
