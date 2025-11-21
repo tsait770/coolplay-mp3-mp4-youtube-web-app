@@ -302,5 +302,117 @@ COMMENT ON FUNCTION public.get_voice_quota_usage IS 'Returns current voice quota
 COMMENT ON FUNCTION public.increment_voice_quota IS 'Increments voice quota usage and returns true if within quota';
 
 -- =====================================================
+-- 8. Core App Data: profiles, folders, bookmarks
+-- =====================================================
+
+-- User profiles table
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+  display_name TEXT,
+  avatar_url TEXT,
+  locale TEXT DEFAULT 'en-US',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_profiles_user_id ON public.profiles(user_id);
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their own profiles"
+  ON public.profiles FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own profiles"
+  ON public.profiles FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own profiles"
+  ON public.profiles FOR UPDATE
+  USING (auth.uid() = user_id);
+
+-- Folders table (for organizing bookmarks)
+CREATE TABLE IF NOT EXISTS public.folders (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_folders_user_id ON public.folders(user_id);
+ALTER TABLE public.folders ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their own folders"
+  ON public.folders FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own folders"
+  ON public.folders FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own folders"
+  ON public.folders FOR UPDATE
+  USING (auth.uid() = user_id);
+
+-- Bookmarks table (media bookmarks)
+CREATE TABLE IF NOT EXISTS public.bookmarks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  folder_id UUID REFERENCES public.folders(id) ON DELETE SET NULL,
+  url TEXT,
+  title TEXT,
+  source_type TEXT,
+  position_seconds INTEGER,
+  note TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_bookmarks_user_id ON public.bookmarks(user_id);
+CREATE INDEX IF NOT EXISTS idx_bookmarks_folder_id ON public.bookmarks(folder_id);
+ALTER TABLE public.bookmarks ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their own bookmarks"
+  ON public.bookmarks FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own bookmarks"
+  ON public.bookmarks FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own bookmarks"
+  ON public.bookmarks FOR UPDATE
+  USING (auth.uid() = user_id);
+
+-- Updated-at triggers for profiles/folders/bookmarks
+DROP TRIGGER IF EXISTS update_profiles_updated_at ON public.profiles;
+CREATE TRIGGER update_profiles_updated_at
+  BEFORE UPDATE ON public.profiles
+  FOR EACH ROW
+  EXECUTE FUNCTION public.update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_folders_updated_at ON public.folders;
+CREATE TRIGGER update_folders_updated_at
+  BEFORE UPDATE ON public.folders
+  FOR EACH ROW
+  EXECUTE FUNCTION public.update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_bookmarks_updated_at ON public.bookmarks;
+CREATE TRIGGER update_bookmarks_updated_at
+  BEFORE UPDATE ON public.bookmarks
+  FOR EACH ROW
+  EXECUTE FUNCTION public.update_updated_at_column();
+
+-- Grants
+GRANT SELECT, INSERT, UPDATE ON public.profiles TO authenticated;
+GRANT SELECT, INSERT, UPDATE ON public.folders TO authenticated;
+GRANT SELECT, INSERT, UPDATE ON public.bookmarks TO authenticated;
+
+COMMENT ON TABLE public.profiles IS 'User profile data (owner RLS)';
+COMMENT ON TABLE public.folders IS 'User folders for organizing bookmarks (owner RLS)';
+COMMENT ON TABLE public.bookmarks IS 'User media bookmarks (owner RLS)';
+
+-- =====================================================
 -- End of Voice Control System Schema
 -- =====================================================

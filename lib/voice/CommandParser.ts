@@ -103,33 +103,85 @@ export class CommandParser {
   }
 
   private extractWithRegex(text: string, language: string): ParsedCommand | null {
-    const numberPatterns: Record<string, RegExp[]> = {
-      'en': [
-        /(?:forward|skip|fast\s*forward)\s+(\d+)\s*(?:seconds?|secs?)/i,
-        /(?:rewind|back|backward)\s+(\d+)\s*(?:seconds?|secs?)/i,
-        /(\d+(?:\.\d+)?)\s*(?:x|times)\s*speed/i,
-        /speed\s+(\d+(?:\.\d+)?)\s*(?:x|times)?/i,
+    // 語言特定的數值抽取規則，含型別標記，支援 12 語言
+    const numberPatterns: Record<string, Array<{ type: 'forward' | 'rewind' | 'speed'; regex: RegExp }>> = {
+      en: [
+        { type: 'forward', regex: /(?:forward|skip|fast\s*forward)\s+(\d+)\s*(?:seconds?|secs?)/i },
+        { type: 'rewind', regex: /(?:rewind|back|backward)\s+(\d+)\s*(?:seconds?|secs?)/i },
+        { type: 'speed', regex: /(\d+(?:\.\d+)?)\s*(?:x|times)\s*speed/i },
+        { type: 'speed', regex: /speed\s+(\d+(?:\.\d+)?)\s*(?:x|times)?/i },
       ],
       'zh-TW': [
-        /(?:快轉|快进|前進)\s*(\d+)\s*秒/i,
-        /(?:倒轉|倒退|後退)\s*(\d+)\s*秒/i,
-        /(\d+(?:\.\d+)?)\s*倍速/i,
+        { type: 'forward', regex: /(?:快轉|快進|前進)\s*(\d+)\s*秒/i },
+        { type: 'rewind', regex: /(?:倒轉|倒退|後退)\s*(\d+)\s*秒/i },
+        { type: 'speed', regex: /(\d+(?:\.\d+)?)\s*倍速/i },
       ],
       'zh-CN': [
-        /(?:快转|快进|前进)\s*(\d+)\s*秒/i,
-        /(?:倒转|倒退|后退)\s*(\d+)\s*秒/i,
-        /(\d+(?:\.\d+)?)\s*倍速/i,
+        { type: 'forward', regex: /(?:快转|快进|前进)\s*(\d+)\s*秒/i },
+        { type: 'rewind', regex: /(?:倒转|倒退|后退)\s*(\d+)\s*秒/i },
+        { type: 'speed', regex: /(\d+(?:\.\d+)?)\s*倍速/i },
+      ],
+      es: [
+        { type: 'forward', regex: /(?:avanzar|adelantar)\s*(\d+)\s*segundos?/i },
+        { type: 'rewind', regex: /(?:retroceder|atrás)\s*(\d+)\s*segundos?/i },
+        { type: 'speed', regex: /(?:velocidad\s*)?(\d+(?:\.\d+)?)\s*x/i },
+      ],
+      'pt-BR': [
+        { type: 'forward', regex: /(?:avançar|pular)\s*(\d+)\s*segundos?/i },
+        { type: 'rewind', regex: /(?:retroceder|voltar)\s*(\d+)\s*segundos?/i },
+        { type: 'speed', regex: /(?:velocidade\s*)?(\d+(?:\.\d+)?)\s*x/i },
+      ],
+      pt: [
+        { type: 'forward', regex: /(?:avançar|saltar)\s*(\d+)\s*segundos?/i },
+        { type: 'rewind', regex: /(?:retroceder|recuar)\s*(\d+)\s*segundos?/i },
+        { type: 'speed', regex: /(?:velocidade\s*)?(\d+(?:\.\d+)?)\s*x/i },
+      ],
+      de: [
+        { type: 'forward', regex: /(\d+)\s*Sekunden\s*(?:vorspulen|vor)/i },
+        { type: 'rewind', regex: /(\d+)\s*Sekunden\s*(?:zurückspulen|zurück)/i },
+        // 逗號小數，先捕獲再轉換
+        { type: 'speed', regex: /(\d+(?:[\.,]\d+)?)\s*x\s*Geschwindigkeit/i },
+        { type: 'speed', regex: /Geschwindigkeit\s*(\d+(?:[\.,]\d+)?)\s*x/i },
+      ],
+      fr: [
+        { type: 'forward', regex: /(avancer|avance)\s*(\d+)\s*secondes?/i },
+        { type: 'rewind', regex: /(reculer|retour)\s*(\d+)\s*secondes?/i },
+        { type: 'speed', regex: /(\d+(?:[\.,]\d+)?)\s*x\s*vitesse/i },
+        { type: 'speed', regex: /vitesse\s*(\d+(?:[\.,]\d+)?)\s*x/i },
+      ],
+      ru: [
+        { type: 'forward', regex: /(?:перемотать\s*на|вперёд\s*на|вперед\s*на)\s*(\d+)\s*секунд/i },
+        { type: 'rewind', regex: /(?:назад\s*на|перемотать\s*назад\s*на)\s*(\d+)\s*секунд/i },
+        { type: 'speed', regex: /скорость\s*(\d+(?:[\.,]\d+)?)\s*x/i },
+      ],
+      ar: [
+        { type: 'forward', regex: /(?:تقديم|تخطي)\s*(\d+)\s*ث(?:واني|انية)/i },
+        { type: 'rewind', regex: /(?:إرجاع|رجوع)\s*(\d+)\s*ث(?:واني|انية)/i },
+        { type: 'speed', regex: /سرعة\s*(\d+(?:\.\d+)?)\s*x/i },
+      ],
+      ja: [
+        { type: 'forward', regex: /(\d+)\s*秒(?:早送り|スキップ)/i },
+        { type: 'rewind', regex: /(\d+)\s*秒(?:巻き戻し|戻る)/i },
+        { type: 'speed', regex: /(\d+(?:\.\d+)?)\s*倍速/i },
+      ],
+      ko: [
+        { type: 'forward', regex: /(\d+)\s*초\s*(?:빨리감기|건너뛰기)/i },
+        { type: 'rewind', regex: /(\d+)\s*초\s*(?:되감기|뒤로)/i },
+        { type: 'speed', regex: /(\d+(?:\.\d+)?)\s*배속/i },
       ],
     };
 
     const patterns = numberPatterns[language] || numberPatterns['en'];
 
-    for (const pattern of patterns) {
-      const match = text.match(pattern);
+    for (const { type, regex } of patterns) {
+      const match = text.match(regex);
       if (match) {
-        const value = parseFloat(match[1]);
-        
-        if (pattern.source.includes('forward|skip')) {
+        let raw = match[1];
+        // 將歐洲語言逗號小數轉為點
+        if (raw && /[,]/.test(raw)) raw = raw.replace(',', '.');
+        const value = parseFloat(raw);
+
+        if (type === 'forward') {
           return {
             intent: 'seek_control',
             action: 'forward',
@@ -138,8 +190,8 @@ export class CommandParser {
             originalText: text,
           };
         }
-        
-        if (pattern.source.includes('rewind|back')) {
+
+        if (type === 'rewind') {
           return {
             intent: 'seek_control',
             action: 'rewind',
@@ -148,8 +200,8 @@ export class CommandParser {
             originalText: text,
           };
         }
-        
-        if (pattern.source.includes('speed')) {
+
+        if (type === 'speed') {
           return {
             intent: 'speed_control',
             action: 'set',

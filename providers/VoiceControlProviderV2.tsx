@@ -144,10 +144,23 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
           confidence: parsedCommand.confidence,
         }));
 
-        if (parsedCommand.confidence >= 0.3) {
-          await executeCommand(parsedCommand);
+        // Confidence gating: <0.6 ask to repeat; 0.6–0.85 request confirmation; >0.85 execute
+        if (parsedCommand.confidence < 0.6) {
+          console.log('[VoiceControlV2] Low confidence (<0.6), requesting retry');
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('voiceRetryRequested', {
+              detail: { text: result.text, parsedCommand },
+            }));
+          }
+        } else if (parsedCommand.confidence < 0.85) {
+          console.log('[VoiceControlV2] Medium confidence (0.6–0.85), requesting confirmation');
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('voiceConfirmationRequested', {
+              detail: { text: result.text, parsedCommand },
+            }));
+          }
         } else {
-          console.log('[VoiceControlV2] Confidence too low, skipping execution');
+          await executeCommand(parsedCommand);
         }
       } else {
         console.log('[VoiceControlV2] No matching command found');
@@ -320,6 +333,61 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
   }, [state.alwaysListening, startListening, stopListening, saveSettings]);
 
   useEffect(() => {
+    // Web: visibility change handling to keep ASR behavior sensible across tabs
+    if (Platform.OS === 'web') {
+      const onVisibilityChange = () => {
+        const isHidden = typeof document !== 'undefined' ? document.hidden : false;
+        if (isHidden) {
+          // Pause when tab is hidden to avoid background mic restrictions
+          if (state.isListening) {
+            stopListening().catch(err => console.warn('[VoiceControlV2] stop on hidden failed', err));
+          }
+        } else {
+          // Resume if alwaysListening is enabled
+          if (state.alwaysListening && !state.isListening) {
+            startListening().catch(err => console.warn('[VoiceControlV2] start on visible failed', err));
+          }
+        }
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('voiceTabVisibilityChanged', { detail: { hidden: isHidden } }));
+        }
+      };
+
+      document.addEventListener('visibilitychange', onVisibilityChange);
+
+      // Keyboard shortcuts for ASR control on Web
+      const isEditableTarget = (el: EventTarget | null) => {
+        const t = el as HTMLElement | null;
+        if (!t) return false;
+        const tag = (t.tagName || '').toLowerCase();
+        return tag === 'input' || tag === 'textarea' || t.isContentEditable;
+      };
+
+      const onKeyDown = (e: KeyboardEvent) => {
+        if (isEditableTarget(e.target)) return; // avoid hijacking typing
+        // Alt+S start, Alt+X stop, Alt+A toggle always listening
+        if (e.altKey && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+          if (e.key.toLowerCase() === 's') {
+            e.preventDefault();
+            startListening().catch(err => console.warn('[VoiceControlV2] start via shortcut failed', err));
+          } else if (e.key.toLowerCase() === 'x') {
+            e.preventDefault();
+            stopListening().catch(err => console.warn('[VoiceControlV2] stop via shortcut failed', err));
+          } else if (e.key.toLowerCase() === 'a') {
+            e.preventDefault();
+            toggleAlwaysListening().catch(err => console.warn('[VoiceControlV2] toggle via shortcut failed', err));
+          }
+        }
+      };
+
+      window.addEventListener('keydown', onKeyDown);
+
+      return () => {
+        document.removeEventListener('visibilitychange', onVisibilityChange);
+        window.removeEventListener('keydown', onKeyDown);
+      };
+    }
+
     return () => {
       console.log('[VoiceControlV2] Cleanup...');
       

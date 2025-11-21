@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-11-21T01:40:32.601Z",
+  "timestamp": "2025-11-21T02:01:19.207Z",
   "env": {
     "url": "https://ukpskaspdzinzpsdoodi.supabase.co",
     "anonKeyPresent": true
@@ -44,6 +44,16 @@
       "name": "table:voice_quota_usage",
       "success": true,
       "detail": "query ok"
+    },
+    {
+      "name": "table:voice_usage_settings",
+      "success": true,
+      "detail": "query ok"
+    },
+    {
+      "name": "table:voice_consent_settings",
+      "success": true,
+      "detail": "query ok"
     }
   ],
   "functions": [
@@ -73,6 +83,16 @@
       "name": "rls:bookmarks:select",
       "success": true,
       "detail": "rows:0"
+    },
+    {
+      "name": "rls:voice_usage_settings:insert_blocked",
+      "success": true,
+      "detail": "new row violates row-level security policy for table \"voice_usage_settings\""
+    },
+    {
+      "name": "rls:voice_consent_settings:insert_blocked",
+      "success": true,
+      "detail": "new row violates row-level security policy for table \"voice_consent_settings\""
     }
   ]
 }
