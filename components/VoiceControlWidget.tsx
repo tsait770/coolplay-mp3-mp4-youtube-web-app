@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Platform, Modal } from 'react-native';
 import { Mic, MicOff } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useVoiceControl } from '@/providers/VoiceControlProvider';
+import { useVoiceControlV2 as useVoiceControl } from '@/providers/VoiceControlProviderV2';
 import { VoiceFeedbackOverlay } from './VoiceFeedbackOverlay';
 
 export const VoiceControlWidget: React.FC = () => {

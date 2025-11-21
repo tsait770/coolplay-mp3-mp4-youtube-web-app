@@ -36,7 +36,7 @@ import Colors from "@/constants/colors";
 import DesignTokens from "@/constants/designTokens";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useLanguage } from "@/hooks/useLanguage";
-import { useVoiceControl } from "@/providers/VoiceControlProvider";
+import { useVoiceControlV2 as useVoiceControl } from "@/providers/VoiceControlProviderV2";
 import { useMembership } from "@/providers/MembershipProvider";
 import { VoiceConfirmationOverlay } from "@/components/VoiceConfirmationOverlay";
 import { VoiceFeedbackOverlay } from "@/components/VoiceFeedbackOverlay";
