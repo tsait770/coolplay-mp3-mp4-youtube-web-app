@@ -1,5 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { SafeImage } from '@/components/SafeImage';
+import {
+  View,
+  Text,
+  Modal,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  ActivityIndicator,
+  Platform,
+  Image,
+} from 'react-native';
 import { X, Smartphone, CheckCircle, QrCode } from 'lucide-react-native';
 import { trpc } from '@/lib/trpc';
 import * as Device from 'expo-device';
@@ -158,7 +168,7 @@ export function DeviceBindingModal({ visible, onClose, onSuccess }: DeviceBindin
 
               {!!qrPayload && showQR && (
                 <View style={styles.qrContainer}>
-                  <SafeImage
+                  <Image
                     testID="qrImage"
                     source={{ uri: buildQrUrl(qrPayload) }}
                     style={styles.qrImage}

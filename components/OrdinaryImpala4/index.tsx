@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
+  Image,
   Animated,
   Platform,
   AccessibilityInfo,
@@ -9,7 +10,6 @@ import {
   StyleSheet,
   useWindowDimensions,
 } from 'react-native';
-import { SafeImage } from '@/components/SafeImage';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
@@ -259,7 +259,7 @@ const OrdinaryImpala4: React.FC<OrdinaryImpala4Props> = ({
         {imageUri && (
           <View style={styles.imageContainer}>
             <Animated.View style={animatedImageStyle}>
-              <SafeImage
+              <Image
                 source={{ uri: imageUri }}
                 style={styles.image}
                 resizeMode="cover"
