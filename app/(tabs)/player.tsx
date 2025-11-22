@@ -37,6 +37,8 @@ import DesignTokens from "@/constants/designTokens";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useLanguage } from "@/hooks/useLanguage";
 import { useVoiceControl } from "@/providers/VoiceControlProvider";
+import { useVoiceControlV2 } from "@/providers/VoiceControlProviderV2";
+import { VoiceConfirmationOverlay } from "@/components/VoiceConfirmationOverlay";
 import { useMembership } from "@/providers/MembershipProvider";
 
 interface VoiceCommand {
