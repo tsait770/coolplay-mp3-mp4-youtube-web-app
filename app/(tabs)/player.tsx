@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
-  StyleSheet,
   Text,
   View,
   ScrollView,
@@ -11,6 +10,7 @@ import {
   Animated,
   Modal,
   Switch,
+  StyleSheet,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { VideoView, useVideoPlayer } from "expo-video";
