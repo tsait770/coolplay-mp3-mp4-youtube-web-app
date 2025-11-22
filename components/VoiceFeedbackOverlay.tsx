@@ -100,7 +100,7 @@ export const VoiceFeedbackOverlay: React.FC<VoiceFeedbackOverlayProps> = ({
   }
 
   return (
-    <View style={[styles.container, { top: insets.top + 60 }]} pointerEvents="none">
+    <View style={[styles.container, { top: insets.top + 16 }]} pointerEvents="none">
       {isListening && (
         <Animated.View 
           style={[
