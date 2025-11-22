@@ -51,17 +51,29 @@ export const trpcClient = trpc.createClient({
       transformer: superjson,
       fetch: async (url, options) => {
         try {
+          console.log('[tRPC] Fetching:', url);
           // Attach Supabase access token for protected tRPC procedures
-          const { data: { session } } = await supabase.auth.getSession();
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          if (sessionError) {
+            console.error('[tRPC] Session error:', sessionError);
+            if (sessionError.message?.includes('NoSuchKey')) {
+              console.error('[tRPC] NoSuchKey error in session - Supabase Storage issue');
+            }
+          }
           const headers = new Headers(options?.headers || {});
           if (session?.access_token) {
             headers.set('Authorization', `Bearer ${session.access_token}`);
           }
 
           const response = await fetch(url, { ...options, headers });
+          console.log('[tRPC] Response status:', response.status);
           return response;
         } catch (error) {
-          console.warn('[tRPC] Network error, API unavailable:', error);
+          console.error('[tRPC] Network error, API unavailable:', error);
+          console.error('[tRPC] Error type:', typeof error);
+          if (error && typeof error === 'object') {
+            console.error('[tRPC] Error details:', JSON.stringify(error, null, 2));
+          }
           // Return a mock response for development
           return new Response(
             JSON.stringify({ 

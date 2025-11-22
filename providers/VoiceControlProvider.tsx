@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Platform } from 'react-native';
+import { Audio } from 'expo-av';
 import createContextHook from '@nkzw/create-context-hook';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useStorage, safeJsonParse } from '@/providers/StorageProvider';
@@ -55,6 +56,7 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
   const audioChunks = useRef<Blob[]>([]);
   const keepAliveInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const recognition = useRef<any>(null);
+  const recordingRef = useRef<Audio.Recording | null>(null);
 
   const loadSettings = useCallback(async () => {
     try {
@@ -312,7 +314,7 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
     }
   }, [language, executeCommand, findMatchingCommand]);
 
-  const transcribeAudio = useCallback(async (audioBlob: Blob) => {
+  const transcribeAudio = useCallback(async (audioData: Blob | { uri: string; type: string; name: string }) => {
     setState(prev => ({ ...prev, isProcessing: true }));
 
     try {
@@ -322,7 +324,18 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
       }
       
       const formData = new FormData();
-      formData.append('audio', audioBlob, 'recording.webm');
+      if ('uri' in audioData) {
+        // Native file upload
+        formData.append('audio', {
+          uri: audioData.uri,
+          type: audioData.type,
+          name: audioData.name,
+        } as any);
+      } else {
+        // Web Blob upload
+        formData.append('audio', audioData, 'recording.webm');
+      }
+
       formData.append('language', getLanguageCode(language));
 
       const response = await fetch('https://toolkit.rork.com/stt/transcribe/', {
@@ -372,6 +385,10 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
 
   const startWebRecording = useCallback(async () => {
     try {
+      if (Platform.OS !== 'web') {
+         // Should not be called on native, but safety check
+         return;
+      }
       if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         console.warn('Media devices not available');
         return;
@@ -440,6 +457,92 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
       setState(prev => ({ ...prev, isListening: false }));
     }
   }, [state.alwaysListening, transcribeAudio]);
+
+  const stopNativeRecording = useCallback(async () => {
+    const recording = recordingRef.current;
+    if (!recording) return;
+    
+    // Clear the ref immediately to prevent race conditions (e.g. timeout vs manual stop)
+    recordingRef.current = null;
+    
+    try {
+        console.log('Stopping native recording...');
+        await recording.stopAndUnloadAsync();
+        const uri = recording.getURI();
+        
+        if (uri) {
+             const extension = Platform.OS === 'android' ? 'm4a' : 'wav';
+             const mimeType = Platform.OS === 'android' ? 'audio/mp4' : 'audio/wav';
+             await transcribeAudio({ 
+                 uri, 
+                 type: mimeType, 
+                 name: `recording.${extension}` 
+             });
+        } else {
+             console.warn('No URI from recording');
+        }
+    } catch (error) {
+        console.error('Error stopping native recording', error);
+    } finally {
+        await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+        setState(prev => ({ ...prev, isListening: false }));
+    }
+  }, [transcribeAudio]);
+
+  const startNativeRecording = useCallback(async () => {
+    try {
+      const permission = await Audio.requestPermissionsAsync();
+      if (permission.status !== 'granted') {
+        console.warn('Audio recording permission denied');
+        return;
+      }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+      });
+
+      const { recording } = await Audio.Recording.createAsync({
+        android: {
+          extension: '.m4a',
+          outputFormat: Audio.AndroidOutputFormat.MPEG_4,
+          audioEncoder: Audio.AndroidAudioEncoder.AAC,
+          sampleRate: 44100,
+          numberOfChannels: 2,
+          bitRate: 128000,
+        },
+        ios: {
+          extension: '.wav',
+          outputFormat: Audio.IOSOutputFormat.LINEARPCM,
+          audioQuality: Audio.IOSAudioQuality.HIGH,
+          sampleRate: 44100,
+          numberOfChannels: 2,
+          bitRate: 128000,
+          linearPCMBitDepth: 16,
+          linearPCMIsBigEndian: false,
+          linearPCMIsFloat: false,
+        },
+        web: {
+          mimeType: 'audio/webm',
+          bitsPerSecond: 128000,
+        },
+      });
+      
+      recordingRef.current = recording;
+      console.log('Native recording started');
+
+      // Stop after 5 seconds
+      setTimeout(async () => {
+        if (recordingRef.current) {
+            await stopNativeRecording();
+        }
+      }, 5000);
+
+    } catch (error) {
+      console.error('Failed to start native recording:', error);
+      setState(prev => ({ ...prev, isListening: false }));
+    }
+  }, [stopNativeRecording]);
 
   const startListening = useCallback(async () => {
     try {
@@ -578,16 +681,14 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
           await startWebRecording();
         }
       } else {
-        console.log('Voice control on mobile requires web recording');
-        if (typeof startWebRecording === 'function') {
-          await startWebRecording();
-        }
+        // Native platform
+        await startNativeRecording();
       }
     } catch (error) {
       console.error('Failed to start voice listening:', error);
       setState(prev => ({ ...prev, isListening: false }));
     }
-  }, [state.isListening, state.alwaysListening, language, processCommand, startWebRecording]);
+  }, [state.isListening, state.alwaysListening, language, processCommand, startWebRecording, startNativeRecording]);
 
   const stopListening = useCallback(async () => {
     try {
@@ -618,10 +719,14 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
         clearInterval(keepAliveInterval.current);
         keepAliveInterval.current = null;
       }
+      
+      if (recordingRef.current) {
+        await stopNativeRecording();
+      }
     } catch (error) {
       console.error('Failed to stop voice listening:', error);
     }
-  }, []);
+  }, [stopNativeRecording]);
   
   useEffect(() => {
     return () => {
@@ -645,6 +750,11 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
         } catch (e) {
           console.warn('[VoiceControl] Cleanup error (mediaRecorder):', e);
         }
+      }
+      
+      if (recordingRef.current) {
+         recordingRef.current.stopAndUnloadAsync().catch(e => console.warn('Cleanup error (recordingRef):', e));
+         recordingRef.current = null;
       }
       
       if (keepAliveInterval.current) {

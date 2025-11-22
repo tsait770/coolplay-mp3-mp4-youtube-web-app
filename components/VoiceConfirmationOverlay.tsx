@@ -52,8 +52,6 @@ export const VoiceConfirmationOverlay: React.FC<VoiceConfirmationOverlayProps> =
     }
   }, [visible, fadeAnim, slideAnim]);
 
-  if (!visible) return null;
-
   return (
     <Animated.View
       style={[
@@ -120,11 +118,19 @@ export const VoiceConfirmationOverlay: React.FC<VoiceConfirmationOverlayProps> =
 
 const styles = StyleSheet.create({
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     zIndex: 10000,
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
   },
   content: {
@@ -151,7 +157,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 20,
-    fontWeight: '700' as const,
+    fontWeight: '700',
     color: '#ffffff',
     marginBottom: 4,
   },
@@ -169,13 +175,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#9ca3af',
     marginBottom: 8,
-    textTransform: 'uppercase' as const,
-    fontWeight: '600' as const,
+    textTransform: 'uppercase',
+    fontWeight: '600',
   },
   commandText: {
     fontSize: 18,
     color: '#ffffff',
-    fontWeight: '600' as const,
+    fontWeight: '600',
   },
   actions: {
     flexDirection: 'row',
@@ -200,12 +206,12 @@ const styles = StyleSheet.create({
   buttonText: {
     color: '#ffffff',
     fontSize: 16,
-    fontWeight: '600' as const,
+    fontWeight: '600',
   },
   hint: {
     fontSize: 12,
     color: '#9ca3af',
-    textAlign: 'center' as const,
-    fontStyle: 'italic' as const,
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });

@@ -17,11 +17,14 @@ const supabaseAnonKey =
 if (!supabaseUrl || supabaseUrl.trim() === '') {
   console.error('❌ Supabase URL is missing or empty');
   console.error('Current URL value:', supabaseUrl);
+  console.error('EXPO_PUBLIC_SUPABASE_URL:', process.env.EXPO_PUBLIC_SUPABASE_URL);
+  console.error('Constants extra:', Constants.expoConfig?.extra);
 }
 
 if (!supabaseAnonKey || supabaseAnonKey.trim() === '') {
   console.error('❌ Supabase Anon Key is missing or empty');
   console.error('Key exists:', !!supabaseAnonKey);
+  console.error('EXPO_PUBLIC_SUPABASE_ANON_KEY exists:', !!process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY);
 }
 
 // Only throw if BOTH are missing (since we have fallbacks)
@@ -32,6 +35,7 @@ if ((!supabaseUrl || supabaseUrl.trim() === '') && (!supabaseAnonKey || supabase
 }
 
 console.log('✅ Supabase initialized:', supabaseUrl.substring(0, 30) + '...');
+console.log('✅ Environment:', process.env.NODE_ENV || 'development');
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
