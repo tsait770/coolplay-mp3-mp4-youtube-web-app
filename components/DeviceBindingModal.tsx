@@ -1,4 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  Modal,
+  TouchableOpacity,
+  TextInput,
+  ActivityIndicator,
+  StyleSheet,
+  Platform,
+} from 'react-native';
 import { SafeImage } from '@/components/SafeImage';
 import { X, Smartphone, CheckCircle, QrCode } from 'lucide-react-native';
 import { trpc } from '@/lib/trpc';
