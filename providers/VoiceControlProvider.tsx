@@ -462,6 +462,14 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
     const recording = recordingRef.current;
     if (!recording) return;
     
+    // 檢查錄音狀態，避免在未準備或已停止的狀態下調用 stopAndUnloadAsync
+    const status = await recording.getStatusAsync();
+    if (!status.isRecording) {
+        console.warn('Attempted to stop a recording that was not in recording state.');
+        recordingRef.current = null;
+        return;
+    }
+    
     // Clear the ref immediately to prevent race conditions (e.g. timeout vs manual stop)
     recordingRef.current = null;
     
@@ -502,7 +510,7 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
         playsInSilentModeIOS: true,
       });
 
-      const { recording } = await Audio.Recording.createAsync({
+	      const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY, {
         android: {
           extension: '.m4a',
           outputFormat: Audio.AndroidOutputFormat.MPEG_4,
@@ -528,15 +536,18 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
         },
       });
       
-      recordingRef.current = recording;
-      console.log('Native recording started');
-
-      // Stop after 5 seconds
-      setTimeout(async () => {
-        if (recordingRef.current) {
-            await stopNativeRecording();
-        }
-      }, 5000);
+	      recordingRef.current = recording;
+	      
+	      // 顯式調用 startAsync 確保錄音開始，這是修復 "recorder not prepared" 錯誤的關鍵
+	      await recording.startAsync(); 
+	      console.log('Native recording started');
+	
+	      // Stop after 5 seconds
+	      setTimeout(async () => {
+	        if (recordingRef.current) {
+	            await stopNativeRecording();
+	        }
+	      }, 5000);
 
     } catch (error) {
       console.error('Failed to start native recording:', error);

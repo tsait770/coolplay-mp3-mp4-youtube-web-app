@@ -1,5 +1,89 @@
 # 問題修復總結
 
+## 2025-11-23 錄音準備錯誤修復 (Voice Recording Prepare Error Fix)
+
+**問題描述:**
+在 `coolplay-mp3-mp4-youtube-web-app` 專案中，重複出現以下錯誤訊息：
+`[ERROR] 準備錄音失敗 Error: Prepare encountered an error: recorder not prepared.`
+這通常發生在嘗試停止或卸載一個尚未成功開始錄音的 `expo-av` 錄音物件時。
+
+**根本原因分析:**
+在 `providers/VoiceControlProvider.tsx` 的 `startNativeRecording` 函數中，`Audio.Recording.createAsync()` 雖然會準備錄音器，但缺少了對 `recording.startAsync()` 的顯式調用來真正開始錄音。因此，當 5 秒的 `setTimeout` 觸發 `stopNativeRecording` 時，錄音器處於未啟動狀態，導致 `stopAndUnloadAsync()` 拋出 `recorder not prepared` 錯誤。
+
+**修復內容:**
+1.  **文件:** `providers/VoiceControlProvider.tsx`
+2.  **修改:** 在 `startNativeRecording` 函數中，`recordingRef.current = recording;` 之後，**顯式添加** `await recording.startAsync();`。
+3.  **優化:** 為了提高穩定性，將 `Audio.Recording.createAsync` 的第一個參數改為使用 `Audio.RecordingOptionsPresets.HIGH_QUALITY` 預設配置，以確保配置的正確性與兼容性。
+4.  **優化:** 在 `stopNativeRecording` 函數中，添加了 `recording.getStatusAsync()` 檢查，確保只在錄音狀態下嘗試停止和卸載，避免不必要的錯誤。
+
+**修復後的 `startNativeRecording` 關鍵代碼片段:**
+
+```typescript
+// providers/VoiceControlProvider.tsx
+const startNativeRecording = useCallback(async () => {
+  try {
+    // ... 權限檢查和 Audio.setAudioModeAsync ...
+
+    const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY, {
+      // ... 配置 ...
+    });
+    
+    recordingRef.current = recording;
+    
+    // 顯式調用 startAsync 確保錄音開始，這是修復 "recorder not prepared" 錯誤的關鍵
+    await recording.startAsync(); 
+    console.log('Native recording started');
+
+    // Stop after 5 seconds
+    setTimeout(async () => {
+      if (recordingRef.current) {
+          await stopNativeRecording();
+      }
+    }, 5000);
+
+  } catch (error) {
+    console.error('Failed to start native recording:', error);
+    setState(prev => ({ ...prev, isListening: false }));
+  }
+}, [stopNativeRecording]);
+```
+
+**修復後的 `stopNativeRecording` 關鍵代碼片段:**
+
+```typescript
+// providers/VoiceControlProvider.tsx
+const stopNativeRecording = useCallback(async () => {
+  const recording = recordingRef.current;
+  if (!recording) return;
+  
+  // 檢查錄音狀態，避免在未準備或已停止的狀態下調用 stopAndUnloadAsync
+  const status = await recording.getStatusAsync();
+  if (!status.isRecording) {
+      console.warn('Attempted to stop a recording that was not in recording state.');
+      recordingRef.current = null;
+      return;
+  }
+  
+  // Clear the ref immediately to prevent race conditions (e.g. timeout vs manual stop)
+  recordingRef.current = null;
+  
+  try {
+      console.log('Stopping native recording...');
+      await recording.stopAndUnloadAsync();
+      // ... 後續處理 ...
+  } catch (error) {
+      console.error('Error stopping native recording', error);
+  } finally {
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+      setState(prev => ({ ...prev, isListening: false }));
+  }
+}, [transcribeAudio]);
+```
+
+---
+
+## 已修復的問題
+
 ## 已修復的問題
 
 ### 1. 語言上下文未定義錯誤
