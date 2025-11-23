@@ -2,12 +2,14 @@ import Flutter
 import UIKit
 import AVFoundation
 import MediaPlayer
+import Speech
 
 public class UniversalPlayerPlugin: NSObject, FlutterPlugin {
   private var methodChannel: FlutterMethodChannel?
   private var stateChannel: FlutterEventChannel?
   private var positionChannel: FlutterEventChannel?
   private var backend: AVBackend?
+  private var speechManager: SpeechRecognitionManager?
 
   public static func register(with registrar: FlutterPluginRegistrar) {
     let instance = UniversalPlayerPlugin()
@@ -16,6 +18,8 @@ public class UniversalPlayerPlugin: NSObject, FlutterPlugin {
     instance.stateChannel = FlutterEventChannel(name: "universal_player/state", binaryMessenger: registrar.messenger())
     instance.positionChannel = FlutterEventChannel(name: "universal_player/position", binaryMessenger: registrar.messenger())
     instance.backend = AVBackend(stateChannel: instance.stateChannel!, positionChannel: instance.positionChannel!)
+    instance.speechManager = SpeechRecognitionManager()
+    instance.speechManager?.registerForAudioSessionNotifications()
   }
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -28,6 +32,22 @@ public class UniversalPlayerPlugin: NSObject, FlutterPlugin {
     case "setVolume": if let vol = call.arguments as? Double { backend?.setVolume(vol: vol) }; result(nil)
     case "setPreferredPeakBitRate": if let bps = call.arguments as? Double { backend?.setPreferredPeakBitRate(bps: bps) }; result(nil)
     case "dispose": backend?.dispose(); result(nil)
+    case "startListening":
+        guard let args = call.arguments as? [String: Any], let continuous = args["continuous"] as? Bool else {
+            result(FlutterError(code: "INVALID_ARGUMENT", message: "Missing 'continuous' argument", details: nil))
+            return
+        }
+        speechManager?.requestPermissions { granted in
+            if granted {
+                self.speechManager?.startListening(continuous: continuous)
+                result(nil)
+            } else {
+                result(FlutterError(code: "PERMISSION_DENIED", message: "Microphone or speech recognition permission denied", details: nil))
+            }
+        }
+    case "stopListening":
+        speechManager?.stopListening()
+        result(nil)
     default: result(FlutterMethodNotImplemented)
     }
   }
