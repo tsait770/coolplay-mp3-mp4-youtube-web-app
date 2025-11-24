@@ -11,7 +11,7 @@ import {
 import * as DocumentPicker from 'expo-document-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FileVideo, CheckCircle, XCircle, AlertCircle, Upload } from 'lucide-react-native';
-import { diagnoseMP4Playback, MP4DiagnosticResult } from '@/utils/mp4Diagnostics';
+import { diagnoseMP4File, MP4DiagnosticResult } from '@/utils/mp4Diagnostics';
 import { detectVideoSource } from '@/utils/videoSourceDetector';
 import EnhancedMP4Player from '@/components/EnhancedMP4Player';
 import Colors from '@/constants/colors';
@@ -40,7 +40,7 @@ export default function MP4DiagnosticScreen() {
         setShowPlayer(false);
         
         setIsLoading(true);
-        const diagResult = await diagnoseMP4Playback(asset.uri);
+        const diagResult = await diagnoseMP4File(asset.uri);
         setDiagnostic(diagResult);
         setIsLoading(false);
         
@@ -130,27 +130,27 @@ export default function MP4DiagnosticScreen() {
         {diagnostic && !isLoading && (
           <>
             <View style={styles.statusCard}>
-              {diagnostic.success ? (
+              {diagnostic.compatibility.nativePlayerSupported ? (
                 <CheckCircle size={48} color="#4CAF50" />
               ) : (
                 <XCircle size={48} color="#F44336" />
               )}
               <Text style={styles.statusTitle}>
-                {diagnostic.success ? '檔案檢測通過' : '檔案檢測失敗'}
+                {diagnostic.compatibility.nativePlayerSupported ? '檔案檢測通過' : '檔案檢測失敗'}
               </Text>
-              {diagnostic.errorMessage && (
-                <Text style={styles.statusError}>{diagnostic.errorMessage}</Text>
+              {diagnostic.errors[0] && (
+                <Text style={styles.statusError}>{diagnostic.errors[0]}</Text>
               )}
             </View>
 
             <View style={styles.diagnosticCard}>
               <Text style={styles.diagnosticCardTitle}>檢測結果</Text>
-              {renderDiagnosticItem('檔案存在', diagnostic.fileExists, diagnostic.fileExists)}
-              {renderDiagnosticItem('可訪問', diagnostic.canAccess, diagnostic.canAccess)}
-              {renderDiagnosticItem('檔案大小', diagnostic.fileSize)}
-              {renderDiagnosticItem('檔案類型', diagnostic.fileType || '未知')}
-              {renderDiagnosticItem('本地檔案', diagnostic.isLocal)}
-              {renderDiagnosticItem('遠端檔案', diagnostic.isRemote)}
+              {renderDiagnosticItem('檔案存在', diagnostic.fileInfo.exists, diagnostic.fileInfo.exists)}
+              {renderDiagnosticItem('可訪問', diagnostic.fileInfo.isReadable, diagnostic.fileInfo.isReadable)}
+              {renderDiagnosticItem('檔案大小', diagnostic.fileInfo.fileSize)}
+              {renderDiagnosticItem('容器/類型', diagnostic.codecInfo?.container || diagnostic.fileInfo.mimeType || '未知')}
+              {renderDiagnosticItem('本地檔案', ['file','content'].includes(diagnostic.fileInfo.uriType))}
+              {renderDiagnosticItem('遠端檔案', ['http','https'].includes(diagnostic.fileInfo.uriType))}
             </View>
 
             {diagnostic.recommendations.length > 0 && (
@@ -165,7 +165,7 @@ export default function MP4DiagnosticScreen() {
               </View>
             )}
 
-            {diagnostic.success && selectedFile && (
+            {diagnostic.compatibility.nativePlayerSupported && selectedFile && (
               <>
                 <TouchableOpacity 
                   style={styles.testButton}

@@ -22,7 +22,7 @@ import {
   Globe,
   Smartphone,
 } from 'lucide-react-native';
-import { diagnoseMP4Playback, MP4DiagnosticResult } from '@/utils/mp4Diagnostics';
+import { diagnoseMP4File, MP4DiagnosticResult } from '@/utils/mp4Diagnostics';
 import { detectVideoSource } from '@/utils/videoSourceDetector';
 import EnhancedMP4Player from '@/components/EnhancedMP4Player';
 import Colors from '@/constants/colors';
@@ -75,7 +75,7 @@ export default function MP4TestScreen() {
       const sourceInfo = detectVideoSource(url);
       console.log('[MP4Test] Source detection:', sourceInfo);
 
-      const diagnostic = await diagnoseMP4Playback(url);
+      const diagnostic = await diagnoseMP4File(url);
       console.log('[MP4Test] Diagnostic result:', diagnostic);
 
       const result: TestResult = {
@@ -83,7 +83,7 @@ export default function MP4TestScreen() {
         fileName,
         sourceType: `${sourceInfo.type} - ${sourceInfo.platform}`,
         diagnostic,
-        playbackSuccess: diagnostic.success && diagnostic.canAccess,
+        playbackSuccess: diagnostic.compatibility.nativePlayerSupported && diagnostic.fileInfo.isReadable,
       };
 
       setCurrentTest(result);
@@ -105,10 +105,8 @@ export default function MP4TestScreen() {
           ]
         );
       } else {
-        Alert.alert(
-          '檢測失敗',
-          `${fileName} 無法播放\n\n錯誤: ${diagnostic.errorMessage || '未知錯誤'}`
-        );
+        const errMsg = diagnostic.errors[0] || '未知錯誤';
+        Alert.alert('檢測失敗', `${fileName} 無法播放\n\n錯誤: ${errMsg}`);
       }
     } catch (error) {
       console.error('[MP4Test] Test error:', error);
@@ -272,20 +270,20 @@ export default function MP4TestScreen() {
                 <Text style={styles.resultLabel}>來源類型</Text>
                 <Text style={styles.resultValue}>{currentTest.sourceType}</Text>
                 
-                {currentTest.diagnostic.fileSize && (
+                {currentTest.diagnostic.fileInfo.fileSize && (
                   <>
                     <Text style={styles.resultLabel}>檔案大小</Text>
                     <Text style={styles.resultValue}>
-                      {(currentTest.diagnostic.fileSize / 1024).toFixed(2)} KB
+                      {(currentTest.diagnostic.fileInfo.fileSize / 1024).toFixed(2)} KB
                     </Text>
                   </>
                 )}
                 
-                {currentTest.diagnostic.errorMessage && (
+                {currentTest.diagnostic.errors[0] && (
                   <>
                     <Text style={styles.resultLabel}>錯誤訊息</Text>
                     <Text style={[styles.resultValue, styles.errorText]}>
-                      {currentTest.diagnostic.errorMessage}
+                      {currentTest.diagnostic.errors[0]}
                     </Text>
                   </>
                 )}
