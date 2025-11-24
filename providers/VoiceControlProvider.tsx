@@ -499,9 +499,24 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
 
   const startNativeRecording = useCallback(async () => {
     try {
-      // 1. 權限檢查與請求
-      const permission = await Audio.requestPermissionsAsync();
-      if (permission.status !== 'granted') {
+      // 1. 權限檢查與請求（含 Allow Once 處理）
+      const currentPerm = await Audio.getPermissionsAsync();
+      if (currentPerm.status !== 'granted') {
+        const permission = await Audio.requestPermissionsAsync();
+        if (permission.status !== 'granted') {
+          console.warn('Audio recording permission denied');
+          setState(prev => ({ ...prev, isListening: false, alwaysListening: false }));
+          if (typeof saveSettings === 'function') {
+            await saveSettings({ alwaysListening: false });
+          }
+          try {
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('voiceError', { detail: { code: 'mic-denied', message: 'Microphone permission denied. Please enable in Settings.' } }));
+            }
+          } catch {}
+          return;
+        }
+      }
         console.warn('Audio recording permission denied');
         // 關鍵優化 1: 權限被拒絕時，重置 alwaysListening 狀態並停止
         setState(prev => ({ ...prev, isListening: false, alwaysListening: false }));
@@ -515,11 +530,13 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
         return; // 終止錄音流程
       }
 
-      // 2. 音訊模式設置
+      // 2. 音訊模式設置（Expo iOS 必須）
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
-        // 確保 iOS 錄音模式正確設置
+        interruptionModeIOS: Audio.INTERRUPTION_MODE_IOS_DO_NOT_MIX,
+        staysActiveInBackground: true,
+        shouldDuckAndroid: true,
       });
 
       // 3. 創建錄音實例
@@ -571,6 +588,11 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
 
     } catch (error) {
       console.error('Failed to start native recording:', error);
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('voiceError', { detail: { code: 'recording-not-allowed', message: 'Recording not allowed on iOS. Please check Audio.setAudioModeAsync and permissions.' } }));
+        }
+      } catch {}
       // 關鍵優化 3: 任何錯誤發生時，重置 isListening 和 alwaysListening
       setState(prev => ({ ...prev, isListening: false, alwaysListening: false }));
       if (typeof saveSettings === 'function') {
