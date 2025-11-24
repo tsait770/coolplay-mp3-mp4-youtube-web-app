@@ -517,18 +517,6 @@ export const [VoiceControlProvider, useVoiceControl] = createContextHook(() => {
           return;
         }
       }
-        console.warn('Audio recording permission denied');
-        // 關鍵優化 1: 權限被拒絕時，重置 alwaysListening 狀態並停止
-        setState(prev => ({ ...prev, isListening: false, alwaysListening: false }));
-        if (typeof saveSettings === 'function') {
-          await saveSettings({ alwaysListening: false });
-        }
-        // 額外建議: 觸發一個 UI 提示事件，告知使用者權限被拒絕
-        // if (typeof window !== 'undefined') {
-        //   window.dispatchEvent(new CustomEvent('voiceError', { detail: { code: 'mic-denied', message: 'Microphone permission denied. Please enable it in settings.' } }));
-        // }
-        return; // 終止錄音流程
-      }
 
       // 2. 音訊模式設置（Expo iOS 必須）
       await Audio.setAudioModeAsync({
