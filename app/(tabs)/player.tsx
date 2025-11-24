@@ -36,7 +36,6 @@ import Colors from "@/constants/colors";
 import DesignTokens from "@/constants/designTokens";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useLanguage } from "@/hooks/useLanguage";
-import { useVoiceControl } from "@/providers/VoiceControlProvider";
 import { useVoiceControlV2 } from "@/providers/VoiceControlProviderV2";
 import { VoiceConfirmationOverlay } from "@/components/VoiceConfirmationOverlay";
 import { useMembership } from "@/providers/MembershipProvider";
@@ -60,7 +59,7 @@ type VideoSourceType = "supported" | "extended" | "unsupported" | "unknown";
 export default function PlayerScreen() {
   const { t } = useTranslation();
   const { language } = useLanguage();
-  const voiceControl = useVoiceControl();
+  const voiceControl = useVoiceControlV2();
   const membership = useMembership();
   const voiceState = voiceControl || { usageCount: 0 };
   const {

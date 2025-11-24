@@ -6,6 +6,7 @@ import { useStorage, safeJsonParse } from '@/providers/StorageProvider';
 import { createASRAdapter, ASRAdapter, ASREvent, ASRResult, ASRError } from '@/lib/voice/ASRAdapter';
 import { isNativeAvailable, startContinuousListen, stopContinuousListen, onInterim, onFinal, onError } from '@/lib/voice/VoiceBridge';
 import { CommandParser, ParsedCommand, VoiceCommand } from '@/lib/voice/CommandParser';
+import { BackgroundListeningManager } from '@/lib/voice/BackgroundListeningManager';
 import { globalPlayerManager, VoiceCommandPayload } from '@/lib/player/GlobalPlayerManager';
 import voiceCommandsData from '@/constants/voiceCommands.json';
 
@@ -198,6 +199,14 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
         window.dispatchEvent(new CustomEvent('voiceCommandSuccess', {
           detail: parsedCommand,
         }));
+        // 事件相容層：發送舊版 voiceCommand 事件確保現有播放器能接收指令
+        window.dispatchEvent(new CustomEvent('voiceCommand', {
+          detail: {
+            intent: parsedCommand.intent,
+            action: parsedCommand.action,
+            slot: parsedCommand.slot,
+          },
+        }));
       }
     } else {
       console.warn('[VoiceControlV2] Command execution failed');
@@ -272,6 +281,16 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
 
       console.log('[VoiceControlV2] Starting listening...');
       if (Platform.OS !== 'web' && isNativeAvailable()) {
+        // iOS 初始化：確保音訊權限和背景模式
+        try {
+          await BackgroundListeningManager.getInstance().start('continuous');
+          console.log('[VoiceControlV2] Background audio mode enabled');
+        } catch (error) {
+          console.error('[VoiceControlV2] Failed to enable background audio:', error);
+          setState(prev => ({ ...prev, isListening: false }));
+          return;
+        }
+        
         nativeInterimSub.current = onInterim((text) => {
           handleASRResult({ text, confidence: 0.5, isFinal: false });
         });
@@ -353,6 +372,14 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
         if (nativeInterimSub.current) { try { nativeInterimSub.current.remove(); } catch {} nativeInterimSub.current = null; }
         if (nativeFinalSub.current) { try { nativeFinalSub.current.remove(); } catch {} nativeFinalSub.current = null; }
         if (nativeErrorSub.current) { try { nativeErrorSub.current.remove(); } catch {} nativeErrorSub.current = null; }
+        
+        // 停止背景音訊模式
+        try {
+          await BackgroundListeningManager.getInstance().stop();
+          console.log('[VoiceControlV2] Background audio mode disabled');
+        } catch (error) {
+          console.error('[VoiceControlV2] Failed to disable background audio:', error);
+        }
       } else if (asrAdapter.current) {
         await asrAdapter.current.stop();
       }
