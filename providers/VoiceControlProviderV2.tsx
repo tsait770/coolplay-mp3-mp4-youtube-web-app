@@ -5,7 +5,7 @@ import createContextHook from '@nkzw/create-context-hook';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useStorage, safeJsonParse } from '@/providers/StorageProvider';
 import { createASRAdapter, ASRAdapter, ASREvent, ASRResult, ASRError } from '@/lib/voice/ASRAdapter';
-import { isNativeAvailable, startContinuousListen, stopContinuousListen, onInterim, onFinal, onError } from '@/lib/voice/VoiceBridge';
+import { isNativeAvailable, startContinuousListen, stopContinuousListen, onInterim, onFinal, onError, requestNativePermissions } from '@/lib/voice/VoiceBridge';
 import { CommandParser, ParsedCommand, VoiceCommand } from '@/lib/voice/CommandParser';
 import { BackgroundListeningManager } from '@/lib/voice/BackgroundListeningManager';
 import { globalPlayerManager, VoiceCommandPayload } from '@/lib/player/GlobalPlayerManager';
@@ -156,18 +156,14 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
         // Confidence gating: <0.6 ask to repeat; 0.6–0.85 request confirmation; >0.85 execute
         if (parsedCommand.confidence < 0.6) {
           console.log('[VoiceControlV2] Low confidence (<0.6), requesting retry');
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('voiceRetryRequested', {
-              detail: { text: result.text, parsedCommand },
-            }));
-          }
+      if (typeof window !== 'undefined' && typeof (globalThis as any).CustomEvent === 'function') {
+        window.dispatchEvent(new CustomEvent('voiceRetryRequested', { detail: { text: result.text, parsedCommand } }));
+      }
         } else if (parsedCommand.confidence < 0.85) {
           console.log('[VoiceControlV2] Medium confidence (0.6–0.85), requesting confirmation');
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('voiceConfirmationRequested', {
-              detail: { text: result.text, parsedCommand },
-            }));
-          }
+      if (typeof window !== 'undefined' && typeof (globalThis as any).CustomEvent === 'function') {
+        window.dispatchEvent(new CustomEvent('voiceConfirmationRequested', { detail: { text: result.text, parsedCommand } }));
+      }
         } else {
           await executeCommand(parsedCommand);
         }
@@ -199,26 +195,15 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
     if (success) {
       console.log('[VoiceControlV2] Command executed successfully');
       
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('voiceCommandSuccess', {
-          detail: parsedCommand,
-        }));
-        // 事件相容層：發送舊版 voiceCommand 事件確保現有播放器能接收指令
-        window.dispatchEvent(new CustomEvent('voiceCommand', {
-          detail: {
-            intent: parsedCommand.intent,
-            action: parsedCommand.action,
-            slot: parsedCommand.slot,
-          },
-        }));
+      if (typeof window !== 'undefined' && typeof (globalThis as any).CustomEvent === 'function') {
+        window.dispatchEvent(new CustomEvent('voiceCommandSuccess', { detail: parsedCommand }));
+        window.dispatchEvent(new CustomEvent('voiceCommand', { detail: { intent: parsedCommand.intent, action: parsedCommand.action, slot: parsedCommand.slot } }));
       }
     } else {
       console.warn('[VoiceControlV2] Command execution failed');
       
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('voiceCommandFailed', {
-          detail: parsedCommand,
-        }));
+      if (typeof window !== 'undefined' && typeof (globalThis as any).CustomEvent === 'function') {
+        window.dispatchEvent(new CustomEvent('voiceCommandFailed', { detail: parsedCommand }));
       }
     }
   }, [state.usageCount, saveSettings]);
@@ -231,10 +216,8 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
       isProcessing: false,
     }));
 
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('voiceError', {
-        detail: error,
-      }));
+    if (typeof window !== 'undefined' && typeof (globalThis as any).CustomEvent === 'function') {
+      window.dispatchEvent(new CustomEvent('voiceError', { detail: error }));
     }
     try {
       BackgroundListeningManager.getInstance().onError(error.message);
@@ -294,13 +277,13 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
           if (!perm.granted) {
             const req = await Audio.requestPermissionsAsync();
             if (!req.granted) {
-              console.warn('[VoiceControlV2] Microphone permission denied');
-              setState(prev => ({ ...prev, isListening: false, alwaysListening: false }));
-              if (typeof window !== 'undefined') {
-                window.dispatchEvent(new CustomEvent('voiceError', { detail: { code: 'mic-denied', message: 'Microphone permission denied' } }));
+              const nativeOk = await requestNativePermissions();
+              if (!nativeOk) {
+                console.warn('[VoiceControlV2] Microphone permission denied');
+                setState(prev => ({ ...prev, isListening: false, alwaysListening: false }));
+                isStartingRef.current = false;
+                return;
               }
-              isStartingRef.current = false;
-              return;
             }
           }
         } catch (permError) {

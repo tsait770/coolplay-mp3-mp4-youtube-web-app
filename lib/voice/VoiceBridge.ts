@@ -40,4 +40,12 @@ export function onError(callback: (code: string, message: string) => void) {
     callback(code, message)
   })
 }
-
+export async function requestNativePermissions(): Promise<boolean> {
+  if (!Native) return false
+  try {
+    const ok = await Native.requestPermissions()
+    return !!ok
+  } catch {
+    return false
+  }
+}

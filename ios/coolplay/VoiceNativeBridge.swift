@@ -33,3 +33,13 @@ class VoiceNative: RCTEventEmitter {
     manager.stopListening()
   }
 }
+  @objc
+  func requestPermissions(_ resolve: RCTPromiseResolveBlock, rejecter reject: RCTPromiseRejectBlock) {
+    manager.requestPermissions { granted in
+      if granted {
+        resolve(true)
+      } else {
+        reject("permissions-denied", "Microphone or speech recognition not granted", nil)
+      }
+    }
+  }

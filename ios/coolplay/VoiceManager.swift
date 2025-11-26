@@ -8,6 +8,7 @@ class VoiceManager: NSObject {
   var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
   var isContinuous: Bool = true
   var lastEventTs: TimeInterval = 0
+  var permissionCallback: ((Bool) -> Void)?
 
   func setupAudioSession() throws {
     let audioSession = AVAudioSession.sharedInstance()
@@ -150,3 +151,14 @@ class VoiceManager: NSObject {
     }
   }
 }
+  func requestPermissions(completion: @escaping (Bool) -> Void) {
+    permissionCallback = completion
+    SFSpeechRecognizer.requestAuthorization { authStatus in
+      AVAudioSession.sharedInstance().requestRecordPermission { granted in
+        DispatchQueue.main.async {
+          let speechGranted = (authStatus == .authorized)
+          completion(speechGranted && granted)
+        }
+      }
+    }
+  }
