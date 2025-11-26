@@ -327,8 +327,7 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
         return;
       }
 
-       if (!asrAdapter.current) {
-        // 1. 創建 ASR Adapter
+      if (!asrAdapter.current) {
         asrAdapter.current = createASRAdapter({
           language: getLanguageCode(language),
           continuous: state.alwaysListening,
@@ -336,17 +335,6 @@ export const [VoiceControlProviderV2, useVoiceControlV2] = createContextHook(() 
           maxAlternatives: 3,
           enableLocalProcessing: true,
         });
-
-        // 2. 檢查並請求權限
-        if (asrAdapter.current.requestPermissions) {
-          const granted = await asrAdapter.current.requestPermissions();
-          if (!granted) {
-            console.warn('[VoiceControlV2] Microphone permission denied by adapter');
-            setState(prev => ({ ...prev, isListening: false, alwaysListening: false }));
-            isStartingRef.current = false;
-            return;
-          }
-        }
 
         asrAdapter.current.on('result', (event: ASREvent) => {
           if (event.data) {

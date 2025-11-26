@@ -492,18 +492,6 @@ export class ExpoRecordingASRAdapter extends ASRAdapter {
     return Platform.OS !== 'web';
   }
 
-  async requestPermissions(): Promise<boolean> {
-    const perm = await Audio.getPermissionsAsync();
-    if (perm.granted) {
-      return true;
-    }
-    const req = await Audio.requestPermissionsAsync();
-    if (!req.granted) {
-        this.emit({ type: 'error', data: { code: 'not-allowed', message: 'Microphone permission denied' } });
-    }
-    return req.granted;
-  }
-
   async start(): Promise<void> {
     if (!this.isAvailable()) {
       throw new Error('Expo Recording is not available');
@@ -515,7 +503,14 @@ export class ExpoRecordingASRAdapter extends ASRAdapter {
     }
 
     try {
-      // 權限檢查已移至 requestPermissions() 處理
+      const perm = await Audio.getPermissionsAsync();
+      if (!perm.granted) {
+        const req = await Audio.requestPermissionsAsync();
+        if (!req.granted) {
+          this.emit({ type: 'error', data: { code: 'not-allowed', message: 'Microphone permission denied' } });
+          throw new Error('Microphone permission denied');
+        }
+      }
 
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
