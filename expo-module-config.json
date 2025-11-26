@@ -1,0 +1,12 @@
+{
+  "ios": {
+    "modules": [
+      "VoiceModuleiOS"
+    ]
+  },
+  "android": {
+    "modules": [
+      "com.coolplay.voicecontrol.VoiceModuleAndroid"
+    ]
+  }
+}
