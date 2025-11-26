@@ -39,14 +39,14 @@ export interface UniversalMediaPlayerProps {
   onPlaybackStart?: () => void;
   onPlaybackEnd?: () => void;
   autoPlay?: boolean;
-  style?: import('react-native').StyleProp<import('react-native').ViewStyle>;
+  style?: any;
   onAgeVerificationRequired?: () => void;
   loadTimeout?: number;
   maxRetries?: number;
   onBackPress?: () => void;
 }
 
-const UniversalMediaPlayer = React.forwardRef<any, UniversalMediaPlayerProps>(function UniversalMediaPlayer({ 
+const UniversalMediaPlayer = React.forwardRef(({
   url,
   onError,
   onPlaybackStart,
@@ -57,7 +57,7 @@ const UniversalMediaPlayer = React.forwardRef<any, UniversalMediaPlayerProps>(fu
   loadTimeout = 30000,
   maxRetries = 4,
   onBackPress,
-}: UniversalMediaPlayerProps, ref) {
+}: UniversalMediaPlayerProps, ref) => {
   const { tier } = useMembership();
   const insets = useSafeAreaInsets();
   const [isLoading, setIsLoading] = useState(true);
