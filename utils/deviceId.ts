@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Application from 'expo-application';
+import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 const DEVICE_ID_KEY = '@device_id';
@@ -24,13 +25,13 @@ async function generateDeviceId(): Promise<string> {
   try {
     const parts: string[] = [];
     
-    if (Platform.OS === 'ios') {
-      const iosId = await Application.getIosIdForVendorAsync();
-      if (iosId) parts.push(iosId);
-    } else if (Platform.OS === 'android') {
-      const androidId = Application.getAndroidId();
-      if (androidId) parts.push(androidId);
-    }
+    // 使用 expo-device 和 expo-constants 獲取裝置資訊
+    const deviceModel = Device.modelName || Device.deviceName || 'unknown-device';
+    const installationId = Constants.installationId || Constants.sessionId || 'unknown-installation';
+    
+    parts.push(Platform.OS);
+    parts.push(deviceModel);
+    parts.push(installationId);
     
     if (parts.length === 0) {
       return generateFallbackDeviceId();
@@ -60,13 +61,9 @@ export async function getDeviceInfo() {
 
 async function getDeviceName(): Promise<string> {
   try {
-    if (Platform.OS === 'ios') {
-      return await Application.getIosIdForVendorAsync() || 'iOS Device';
-    } else if (Platform.OS === 'android') {
-      const brand = await Application.applicationName;
-      return brand || 'Android Device';
-    }
-    return 'Web Browser';
+    const deviceName = Device.modelName || Device.deviceName || 'Unknown Device';
+    const brand = Device.brand || '';
+    return brand ? `${brand} ${deviceName}` : deviceName;
   } catch {
     return 'Unknown Device';
   }
