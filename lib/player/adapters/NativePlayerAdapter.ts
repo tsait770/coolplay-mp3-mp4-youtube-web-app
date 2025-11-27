@@ -11,34 +11,12 @@ export class NativePlayerAdapter implements UniversalPlayerController {
   private listeners: Set<(status: PlayerStatus) => void> = new Set();
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private currentState: PlayerState = PlayerState.IDLE;
-  private url: string;
-  private config?: VideoSourceConfig;
 
-  constructor(urlOrPlayer: string | any, config?: VideoSourceConfig) {
-    if (typeof urlOrPlayer === 'string') {
-      // 如果第一個參數是 URL 字串
-      console.log('[NativePlayerAdapter] Initializing with URL:', urlOrPlayer);
-      this.url = urlOrPlayer;
-      this.config = config;
-      // Player 實例將由外部設置或延遲初始化
-      this.player = null;
-    } else {
-      // 如果第一個參數是 player 對象
-      console.log('[NativePlayerAdapter] Initializing with player instance');
-      this.player = urlOrPlayer;
-      this.url = '';
-      this.config = config;
-    }
-    this.currentState = PlayerState.IDLE;
-    this.startStatusMonitoring();
-  }
-
-  // 設置 player 實例的方法
-  setPlayer(player: any): void {
+  constructor(player: any, config?: VideoSourceConfig) {
+    console.log('[NativePlayerAdapter] Initializing with player instance');
     this.player = player;
-    if (player) {
-      this.currentState = PlayerState.READY;
-    }
+    this.currentState = PlayerState.READY;
+    this.startStatusMonitoring();
   }
 
   getPlayerType(): PlayerType {
@@ -161,57 +139,6 @@ export class NativePlayerAdapter implements UniversalPlayerController {
       console.error('[NativePlayerAdapter] Error setting muted:', error);
       throw error;
     }
-  }
-
-  async toggleMute(): Promise<void> {
-    try {
-      const status = await this.getStatus();
-      await this.setMuted(!status.muted);
-    } catch (error) {
-      console.error('[NativePlayerAdapter] Error toggling mute:', error);
-      throw error;
-    }
-  }
-
-  async forward(seconds: number): Promise<void> {
-    try {
-      const status = await this.getStatus();
-      await this.seek(status.currentTime + seconds);
-    } catch (error) {
-      console.error('[NativePlayerAdapter] Error forwarding:', error);
-      throw error;
-    }
-  }
-
-  async rewind(seconds: number): Promise<void> {
-    try {
-      const status = await this.getStatus();
-      await this.seek(Math.max(0, status.currentTime - seconds));
-    } catch (error) {
-      console.error('[NativePlayerAdapter] Error rewinding:', error);
-      throw error;
-    }
-  }
-
-  async restart(): Promise<void> {
-    try {
-      await this.seek(0);
-      await this.play();
-    } catch (error) {
-      console.error('[NativePlayerAdapter] Error restarting:', error);
-      throw error;
-    }
-  }
-
-  async toggleFullscreen(): Promise<void> {
-    // Native player fullscreen toggle
-    console.log('[NativePlayerAdapter] Toggle fullscreen requested');
-  }
-
-  isReady(): boolean {
-    return this.currentState === PlayerState.READY || 
-           this.currentState === PlayerState.PLAYING || 
-           this.currentState === PlayerState.PAUSED;
   }
 
   async enterFullscreen(): Promise<void> {

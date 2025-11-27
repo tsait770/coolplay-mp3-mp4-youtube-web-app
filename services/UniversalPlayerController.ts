@@ -15,7 +15,7 @@ import { WebViewPlayerAdapter } from '../lib/player/adapters/WebViewPlayerAdapte
 
 // 播放器適配器介面
 interface IPlayerAdapter extends IPlayerController {
-  // 適配器已經實現 IPlayerController 的所有方法
+  initialize(): Promise<void>;
 }
 
 /**
@@ -80,7 +80,10 @@ export class UniversalPlayerController {
 
       this.currentAdapter = adapter as IPlayerAdapter;
 
-      // 適配器已經在 PlayerAdapterRouter 中初始化完成
+      // 初始化適配器
+      if (this.currentAdapter.initialize) {
+        await this.currentAdapter.initialize();
+      }
 
       // 設置狀態監聽
       const unsubscribe = this.currentAdapter.subscribe((status) => {

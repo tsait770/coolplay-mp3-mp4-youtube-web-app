@@ -1,4 +1,3 @@
-/// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 // Helper function to determine media type from command details
@@ -13,7 +12,7 @@ function getMediaType(command: string): 'DASH' | 'MP3' | 'HLS' | 'MP4' | 'Video'
   return 'Other'; 
 }
 
-Deno.serve(async (req: Request) => {
+Deno.serve(async (req) => {
   try {
     const { command, user_id, media_type } = await req.json()
 
@@ -60,9 +59,8 @@ Deno.serve(async (req: Request) => {
     )
   } catch (error) {
     console.error('Edge Function error:', error)
-    const errorMessage = error instanceof Error ? error.message : String(error);
     return new Response(
-      JSON.stringify({ error: errorMessage }),
+      JSON.stringify({ error: error.message }),
       { status: 500, headers: { 'Content-Type': 'application/json' } },
     )
   }
