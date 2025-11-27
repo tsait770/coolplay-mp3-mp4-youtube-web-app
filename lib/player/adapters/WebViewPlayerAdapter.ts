@@ -145,6 +145,56 @@ export class WebViewPlayerAdapter implements UniversalPlayerController {
     console.log('[WebViewPlayerAdapter] Exit fullscreen');
   }
 
+  async toggleFullscreen(): Promise<void> {
+    console.log('[WebViewPlayerAdapter] Toggle fullscreen');
+  }
+
+  async toggleMute(): Promise<void> {
+    try {
+      const status = await this.getStatus();
+      await this.setMuted(!status.muted);
+    } catch (error) {
+      console.error('[WebViewPlayerAdapter] Error toggling mute:', error);
+      throw error;
+    }
+  }
+
+  async forward(seconds: number): Promise<void> {
+    try {
+      const status = await this.getStatus();
+      await this.seek(status.currentTime + seconds);
+    } catch (error) {
+      console.error('[WebViewPlayerAdapter] Error forwarding:', error);
+      throw error;
+    }
+  }
+
+  async rewind(seconds: number): Promise<void> {
+    try {
+      const status = await this.getStatus();
+      await this.seek(Math.max(0, status.currentTime - seconds));
+    } catch (error) {
+      console.error('[WebViewPlayerAdapter] Error rewinding:', error);
+      throw error;
+    }
+  }
+
+  async restart(): Promise<void> {
+    try {
+      await this.seek(0);
+      await this.play();
+    } catch (error) {
+      console.error('[WebViewPlayerAdapter] Error restarting:', error);
+      throw error;
+    }
+  }
+
+  isReady(): boolean {
+    return this.currentState === PlayerState.READY || 
+           this.currentState === PlayerState.PLAYING || 
+           this.currentState === PlayerState.PAUSED;
+  }
+
   async getStatus(): Promise<PlayerStatus> {
     return {
       state: this.currentState,

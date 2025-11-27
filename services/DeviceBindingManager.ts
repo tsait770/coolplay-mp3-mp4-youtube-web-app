@@ -1,7 +1,8 @@
 // src/services/DeviceBindingManager.ts
 // InstaPlay V10.0 - 裝置綁定管理器 (100% 可行)
 import { Platform } from 'react-native';
-import * as Application from 'expo-application';
+import * as Device from 'expo-device';
+import Constants from 'expo-constants';
 import { supabase } from '../lib/supabase';
 
 export interface DeviceInfo {
@@ -112,26 +113,15 @@ export class DeviceBindingManager {
     }
 
     try {
-      if (Platform.OS === 'ios') {
-        // iOS: 使用 identifierForVendor
-        const idfv = await Application.getIosIdForVendorAsync();
-        if (idfv) {
-          this.cachedDeviceId = idfv;
-          return idfv;
-        }
-      } else if (Platform.OS === 'android') {
-        // Android: 使用 Android ID
-        const androidId = await Application.getAndroidIdAsync();
-        if (androidId) {
-          this.cachedDeviceId = androidId;
-          return androidId;
-        }
-      }
-
-      // 備援方案：使用應用程式 ID
-      const appId = Application.applicationId || 'unknown';
-      this.cachedDeviceId = `${Platform.OS}-${appId}`;
-      return this.cachedDeviceId;
+      // 使用 expo-device 和 expo-constants 獲取裝置 ID
+      const deviceId = Device.modelName || Device.deviceName || 'unknown-device';
+      const installationId = Constants.installationId || Constants.sessionId || 'unknown-installation';
+      
+      // 組合裝置標識符
+      const uniqueId = `${Platform.OS}-${deviceId}-${installationId}`.replace(/[^a-zA-Z0-9-]/g, '-');
+      
+      this.cachedDeviceId = uniqueId;
+      return uniqueId;
     } catch (error) {
       console.error('❌ 獲取裝置 ID 失敗:', error);
       const fallbackId = `${Platform.OS}-${Date.now()}`;
