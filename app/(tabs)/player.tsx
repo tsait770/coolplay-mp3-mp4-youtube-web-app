@@ -11,6 +11,8 @@ import {
   Modal,
   Switch,
   StyleSheet,
+  Platform,
+  DeviceEventEmitter,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { VideoView, useVideoPlayer } from "expo-video";
@@ -265,9 +267,8 @@ export default function PlayerScreen() {
 
   // Listen for mic/voice permission errors
   useEffect(() => {
-    const handler = (e: Event) => {
+    const handler = (detail: any) => {
       try {
-        const detail = (e as CustomEvent).detail as { code?: string; message?: string } | undefined;
         const code = detail?.code || 'mic-error';
         if (code === 'mic-denied') {
           const errorMsg = t('microphone_permission_denied');
@@ -291,21 +292,30 @@ export default function PlayerScreen() {
         }
       } catch {}
     };
-    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
-      window.addEventListener('voiceError', handler as EventListener);
-    }
-    return () => {
-      if (typeof window !== 'undefined' && typeof window.removeEventListener === 'function') {
-        window.removeEventListener('voiceError', handler as EventListener);
+    
+    if (Platform.OS === 'web') {
+      const webHandler = (e: Event) => {
+        const detail = (e as CustomEvent).detail;
+        handler(detail);
+      };
+      if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+        window.addEventListener('voiceError', webHandler as EventListener);
       }
-    };
+      return () => {
+        if (typeof window !== 'undefined' && typeof window.removeEventListener === 'function') {
+          window.removeEventListener('voiceError', webHandler as EventListener);
+        }
+      };
+    } else {
+      const subscription = DeviceEventEmitter.addListener('voiceError', handler);
+      return () => subscription.remove();
+    }
   }, [t, alwaysListening, toggleAlwaysListening]);
   
   // Listen for voice confirmation requests
   useEffect(() => {
-    const handler = (e: Event) => {
+    const handler = (detail: any) => {
       try {
-        const detail = (e as CustomEvent).detail as { text: string; parsedCommand: any } | undefined;
         if (detail) {
           console.log('[PlayerScreen] Voice confirmation requested:', detail);
           setPendingCommand(detail);
@@ -327,18 +337,31 @@ export default function PlayerScreen() {
       }
     };
     
-    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
-      window.addEventListener('voiceConfirmationRequested', handler as EventListener);
+    if (Platform.OS === 'web') {
+      const webHandler = (e: Event) => {
+        const detail = (e as CustomEvent).detail;
+        handler(detail);
+      };
+      if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+        window.addEventListener('voiceConfirmationRequested', webHandler as EventListener);
+      }
+      return () => {
+        if (confirmationTimeoutRef.current) {
+          clearTimeout(confirmationTimeoutRef.current);
+        }
+        if (typeof window !== 'undefined' && typeof window.removeEventListener === 'function') {
+          window.removeEventListener('voiceConfirmationRequested', webHandler as EventListener);
+        }
+      };
+    } else {
+      const subscription = DeviceEventEmitter.addListener('voiceConfirmationRequested', handler);
+      return () => {
+        if (confirmationTimeoutRef.current) {
+          clearTimeout(confirmationTimeoutRef.current);
+        }
+        subscription.remove();
+      };
     }
-    
-    return () => {
-      if (confirmationTimeoutRef.current) {
-        clearTimeout(confirmationTimeoutRef.current);
-      }
-      if (typeof window !== 'undefined' && typeof window.removeEventListener === 'function') {
-        window.removeEventListener('voiceConfirmationRequested', handler as EventListener);
-      }
-    };
   }, [t]);
 
   // Listen for voice commands from Siri integration
